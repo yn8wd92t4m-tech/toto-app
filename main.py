@@ -1,5 +1,6 @@
 import io
 import datetime
+from zoneinfo import ZoneInfo  # 日本時間を指定するライブラリ
 import requests
 import streamlit as st
 import pandas as pd
@@ -10,9 +11,10 @@ st.set_page_config(page_title="mini toto-A組 予想・投資シミュレータ�
 st.title("⚽ mini toto-A組 予想・投資ナビゲーター")
 st.caption("A組（前半5試合）に特化し、開催回の波乱度診断と『厚張り（複数口買い）』戦略で回収率を最大化する実戦ツール。")
 
-# --- 締切カウントダウン ---
-DEADLINE = datetime.datetime(2026, 9, 12, 17, 50, 0)
-now = datetime.datetime.now()
+# --- 締切カウントダウン（日本時間で正確に固定） ---
+JST = ZoneInfo("Asia/Tokyo")
+DEADLINE = datetime.datetime(2026, 9, 12, 17, 50, 0, tzinfo=JST)
+now = datetime.datetime.now(JST)
 remaining = DEADLINE - now
 
 if remaining.total_seconds() > 0:

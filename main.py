@@ -6,10 +6,10 @@ import streamlit as st
 import pandas as pd
 
 # ページの基本設定
-st.set_page_config(page_title="mini toto-A組 予想・投資システム", page_icon="⚽", layout="wide")
+st.set_page_config(page_title="mini toto-A組 自動適応型AI投資システム", page_icon="⚽", layout="wide")
 
-st.title("⚽ mini toto-A組 究極分析＆検証システム")
-st.caption("動的ダブル（引分切り対応）・最難関トリプル配分・過剰人気逆張りを統合した実戦モデル。")
+st.title("⚽ mini toto-A組 自動適応型（ハイブリッド）予想・検証システム")
+st.caption("開催回の波乱度を事前診断し、「順当モード（厚張り本命）」と「波乱モード（トリプル突破）」を自動で最適に切り替えるアダプティブAI。")
 
 # --- 締切カウントダウン（日本時間固定） ---
 JST = ZoneInfo("Asia/Tokyo")
@@ -69,7 +69,7 @@ def fetch_weather(home_team):
     try:
         res = requests.get(url, timeout=5).json()
         daily = res.get("daily", {})
-        prob_list = daily.get("precipitation_probability_max",)
+        prob_list = daily.get("precipitation_probability_max", [])
         prob = prob_list[0] if prob_list else 20
         is_rain = (prob >= 50) and (not info["roof"])
         weather_icon = "☔ 雨" if prob >= 50 else ("☁️ 曇" if prob >= 30 else "☀️ 晴")
@@ -118,49 +118,15 @@ def get_team_info(name):
 
 # 第1653回 mini toto-A組
 official_matches = [
-    {"no": 1, "home": "水戸", "away": "川崎F", "pop_vote": "川崎F"},
-    {"no": 2, "home": "清水", "away": "福岡", "pop_vote": "清水"},
-    {"no": 3, "home": "G大阪", "away": "FC東京", "pop_vote": "G大阪"},
-    {"no": 4, "home": "町田", "away": "横浜FM", "pop_vote": "町田"},
-    {"no": 5, "home": "長崎", "away": "名古屋", "pop_vote": "名古屋"},
+    {"no": 1, "home": "水戸", "away": "川崎F"},
+    {"no": 2, "home": "清水", "away": "福岡"},
+    {"no": 3, "home": "G大阪", "away": "FC東京"},
+    {"no": 4, "home": "町田", "away": "横浜FM"},
+    {"no": 5, "home": "長崎", "away": "名古屋"},
 ]
 
-# --- サイドバー ---
-st.sidebar.header("⚙️ 予想・投資戦略")
-
-alloc_strategy = st.sidebar.radio(
-    "🎯 マルチ購入配分プラン",
-    [
-        "⚡ スマート配分 (トリプル1・ダブル3・シングル1 / 2,400円)",
-        "🛡️ オールダブル (ダブル5 / 3,200円)",
-        "🎲 カスタム指定"
-    ],
-    index=0
-)
-
-enable_anti_popular = st.sidebar.checkbox("🧠 過剰人気の逆張り補正（オイシイ穴目を昇格）", value=True)
-enable_lineup = st.sidebar.checkbox("🚨 直前スタメン速報を反映", value=True)
-
-if alloc_strategy == "⚡ スマート配分 (トリプル1・ダブル3・シングル1 / 2,400円)":
-    num_triple = 1
-    num_double = 3
-elif alloc_strategy == "🛡️ オールダブル (ダブル5 / 3,200円)":
-    num_triple = 0
-    num_double = 5
-else:
-    num_double = st.sidebar.slider("ダブル数", 0, 5, 2)
-    num_triple = st.sidebar.slider("トリプル数", 0, 2, 0)
-
-# 口数と金額
-combinations = (2 ** num_double) * (3 ** num_triple)
-total_cost = combinations * 100
-
-st.sidebar.divider()
-st.sidebar.metric(label="合計購入口数", value=f"{combinations:,} 口")
-st.sidebar.metric(label="合計購入金額", value=f"{total_cost:,} 円")
-
-# --- 高度勝率・ダブル選定関数 ---
-def analyze_match_advanced(h_name, a_name, is_rain=False, check_lineup=True, anti_pop=True):
+# --- 試合単体スコアリング ---
+def calculate_match_base(h_name, a_name, is_rain=False, check_lineup=True):
     h_info = get_team_info(h_name)
     a_info = get_team_info(a_name)
     pair = {h_name, a_name}
@@ -197,39 +163,7 @@ def analyze_match_advanced(h_name, a_name, is_rain=False, check_lineup=True, ant
     a_p = round(a_score / total, 2)
     d_p = round(1.0 - (h_p + a_p), 2)
 
-    # 過剰人気への逆張り補正（本命が過熱している場合は裏目の確率評価を底上げ）
-    if anti_pop:
-        if h_p > 0.50:
-            a_p += 0.08
-            h_p -= 0.05
-        elif a_p > 0.50:
-            h_p += 0.08
-            a_p -= 0.05
-
-    # 本命判定
-    p_max = max(h_p, d_p, a_p)
-    if p_max == h_p:
-        first_mark = "1"
-    elif p_max == a_p:
-        first_mark = "2"
-    else:
-        first_mark = "0"
-
-    # --- ダブルの選定ロジック（引分切り判定） ---
-    # 雨天や守備的な試合でなければ、引き分けを切って【1・2】両極端にする
     p_first, p_second, p_third = sorted([h_p, d_p, a_p], reverse=True)
-    if not is_rain and (d_p <= 0.28) and abs(h_p - a_p) <= 0.20:
-        double_type = "⚡ 引分切りダブル【1・2】"
-        double_marks = ["1", "2"]
-    else:
-        # 手堅い上位2択
-        double_type = "🟡 手堅い上位ダブル"
-        choices = sorted([("1", h_p), ("0", d_p), ("2", a_p)], key=lambda x: x, reverse=True)
-        c1, c2, c3 = choices
-        m_a, m_b = sorted([c1[0], c2[0]])
-        double_marks = [m_a, m_b]
-
-    # 不確実性（波乱度）スコア
     uncertainty = p_first - p_second
     if derby_title:
         uncertainty -= 0.12
@@ -238,53 +172,139 @@ def analyze_match_advanced(h_name, a_name, is_rain=False, check_lineup=True, ant
     if susp_h != 0.0 or susp_a != 0.0:
         uncertainty -= 0.10
 
+    has_chaos_flag = (derby_title is not None) or is_rain or (susp_h != 0.0 or susp_a != 0.0) or (lineup_h != 0.0 or lineup_a != 0.0)
+
     return {
         "home": h_name, "away": a_name, "home_rank": h_info["rank"], "away_rank": a_info["rank"],
         "home_p": h_p, "draw_p": d_p, "away_p": a_p,
-        "first_mark": first_mark, "double_marks": double_marks, "double_type": double_type,
-        "uncertainty": uncertainty, "derby": derby_title, "is_rain": is_rain
+        "uncertainty": uncertainty, "derby": derby_title, "is_rain": is_rain,
+        "has_chaos_flag": has_chaos_flag
     }
 
-# 試合リスト解析
-analyzed_matches = []
+# --- 開催回全体の波乱度診断 ---
+analyzed_temp = []
+total_chaos_points = 0
 for m in official_matches:
     w = fetch_weather(m["home"])
-    res = analyze_match_advanced(m["home"], m["away"], is_rain=w["is_rain"], check_lineup=enable_lineup, anti_pop=enable_anti_popular)
-    res["no"] = m["no"]
-    res["weather"] = w["desc"]
-    res["stadium"] = w["stadium"]
-    analyzed_matches.append(res)
+    b = calculate_match_base(m["home"], m["away"], is_rain=w["is_rain"], check_lineup=True)
+    b["no"] = m["no"]
+    b["weather"] = w["desc"]
+    b["stadium"] = w["stadium"]
+    analyzed_temp.append(b)
 
-# 波乱順にソート（最も荒れる試合にトリプル、次にダブルを配分）
-sorted_by_chaos = sorted(analyzed_matches, key=lambda x: x["uncertainty"])
+    if b["has_chaos_flag"]:
+        total_chaos_points += 20
+    if b["uncertainty"] < 0.12:
+        total_chaos_points += 15
 
-triple_match_nos = [m["no"] for m in sorted_by_chaos[:num_triple]]
-double_match_nos = [m["no"] for m in sorted_by_chaos[num_triple:num_triple + num_double]]
+round_chaos_score = min(total_chaos_points, 100)
+is_chaos_round = (round_chaos_score >= 40)
+
+# --- サイドバー ---
+st.sidebar.header("⚙️ 戦略・システム設定")
+
+mode_selection = st.sidebar.radio(
+    "🔄 AI戦術動作モード",
+    ["🤖 完全自動判定（波乱度に応じた自動最適化）", "🟢 強制：順当手堅いモード（前回の厚張り本命）", "🔴 強制：波乱警戒モード（トリプル＋引分切り）"],
+    index=0
+)
+
+# 動作モードの決定
+if mode_selection == "🟢 強制：順当手堅いモード（前回の厚張り本命）":
+    current_mode = "SOLID"
+elif mode_selection == "🔴 強制：波乱警戒モード（トリプル＋引分切り）":
+    current_mode = "CHAOS"
+else:
+    current_mode = "CHAOS" if is_chaos_round else "SOLID"
+
+st.sidebar.divider()
+
+if current_mode == "SOLID":
+    st.sidebar.success("🟢 **作戦: 順当・厚張り本命モデル稼働中**")
+    num_triple = 0
+    num_double = 2
+    purchase_multiplier = st.sidebar.slider("厚張り口数（同じ目を何口買うか）", 1, 5, 2)
+    st.sidebar.caption("地力差を信じてダブル2個に絞り、2〜3口の厚張りで手堅く回収する戦術です。")
+else:
+    st.sidebar.error("🔴 **作戦: 波乱・トリプル突破モデル稼働中**")
+    num_triple = 1
+    num_double = 3
+    purchase_multiplier = 1
+    st.sidebar.caption("難関カードをトリプル全抑えし、引分切りダブル【1・2】で波乱を絡め取る戦術です。")
+
+combinations = (2 ** num_double) * (3 ** num_triple)
+total_cost = combinations * purchase_multiplier * 100
+
+st.sidebar.metric(label="合計購入口数", value=f"{combinations * purchase_multiplier:,} 口")
+st.sidebar.metric(label="合計購入金額", value=f"{total_cost:,} 円")
+
+# --- 診断バナー ---
+if is_chaos_round:
+    st.error(f"### 🎯 今節の波乱度診断：🔴 波乱警戒回（波乱スコア: {round_chaos_score}%）\n**💡 AI判定**: ダービーや悪天候、主力不在が複数絡む大荒れ傾向です。**前回の本命モデルは封印し、「トリプル全抑え＋引分切りダブル」の波乱突破モデル**を自動起動しました！")
+else:
+    st.success(f"### 🎯 今節の波乱度診断：🟢 順当・手堅い回（波乱スコア: {round_chaos_score}%）\n**💡 AI判定**: 地力差がはっきり出やすい平穏回です。穴狙いは封印し、**前回の強力な「本命重視＋ダブル絞り＋厚張り（複数口買い）」**を自動起動しました！")
+
+# --- 買い目生成エンジン ---
+analyzed_matches = []
+for b in analyzed_temp:
+    h_p = b["home_p"]
+    d_p = b["draw_p"]
+    a_p = b["away_p"]
+
+    if current_mode == "SOLID":
+        # 前回の強力な手堅いロジック（本命＋上位2択ダブル）
+        p_max = max(h_p, d_p, a_p)
+        first_mark = "1" if p_max == h_p else ("2" if p_max == a_p else "0")
+        choices = sorted([("1", h_p), ("0", d_p), ("2", a_p)], key=lambda x: x, reverse=True)
+        c1, c2, c3 = choices
+        m_a, m_b = sorted([c1[0], c2[0]])
+        d_marks = [m_a, m_b]
+        d_type = "🟡 手堅い本命ダブル"
+    else:
+        # 今回の波乱対応ロジック（引分切り対応）
+        p_max = max(h_p, d_p, a_p)
+        first_mark = "1" if p_max == h_p else ("2" if p_max == a_p else "0")
+        if (not b["is_rain"]) and (d_p <= 0.28) and abs(h_p - a_p) <= 0.20:
+            d_type = "⚡ 引分切りダブル【1・2】"
+            d_marks = ["1", "2"]
+        else:
+            choices = sorted([("1", h_p), ("0", d_p), ("2", a_p)], key=lambda x: x, reverse=True)
+            c1, c2, c3 = choices
+            m_a, m_b = sorted([c1[0], c2[0]])
+            d_marks = [m_a, m_b]
+            d_type = "🟡 手堅い上位ダブル"
+
+    b_res = dict(b)
+    b_res["first_mark"] = first_mark
+    b_res["double_marks"] = d_marks
+    b_res["double_type"] = d_type
+    analyzed_matches.append(b_res)
+
+sorted_matches = sorted(analyzed_matches, key=lambda x: x["uncertainty"])
+triple_match_nos = [m["no"] for m in sorted_matches[:num_triple]]
+double_match_nos = [m["no"] for m in sorted_matches[num_triple:num_triple + num_double]]
 
 # --- タブ構成 ---
-tab1, tab2 = st.tabs(["🎯 究極予想＆マークシート", "📈 過去回バックテスト（第1653回追加版）"])
+tab1, tab2 = st.tabs(["🎯 買い目シミュレーター", "📈 自動切り替えバックテスト（過去11回検証）"])
 
-# ==================== タブ1：最新予想 ====================
+# ==================== タブ1：買い目 ====================
 with tab1:
-    st.subheader("📋 mini toto-A組 究極マルチ買い目")
-    st.caption("最も危険な試合をトリプルで封じ、自信のある試合をシングルに絞ることで、高い的中率と低コストを両立します。")
-
+    st.subheader("📋 mini toto-A組 最適化買い目")
     results = []
     for m in analyzed_matches:
         is_1 = is_0 = is_2 = False
 
         if m["no"] in triple_match_nos:
-            buy_badge = "🔴 トリプル (全抑え・地雷突破)"
+            buy_badge = "🔴 トリプル (全抑え・地雷封殺)"
             selection = "【1】 【0】 【2】"
             is_1 = is_0 = is_2 = True
         elif m["no"] in double_match_nos:
-            d_marks = m["double_marks"]
-            m_a, m_b = d_marks
-            buy_badge = f"{m['double_type']}"
+            m_a, m_b = m["double_marks"]
+            buy_badge = m["double_type"]
             selection = f"【{m_a}】 【{m_b}】"
-            is_1 = ("1" in d_marks)
-            is_0 = ("0" in d_marks)
-            is_2 = ("2" in d_marks)
+            is_1 = ("1" in m["double_marks"])
+            is_0 = ("0" in m["double_marks"])
+            is_2 = ("2" in m["double_marks"])
         else:
             buy_badge = "⚪ シングル (本命信頼)"
             selection = f"【{m['first_mark']}】"
@@ -313,6 +333,7 @@ with tab1:
         st.divider()
 
     st.subheader("👀 打ち間違い防止：楽天toto 照合用マークシート")
+    st.markdown(f"楽天totoの購入画面で以下の通りマークし、口数に **【 各 {purchase_multiplier} 口 】** と入力してください。")
     st.link_button("🛒 楽天toto 公式購入画面を開く", "https://toto.rakuten.co.jp/")
     sheet_rows = []
     for r in results:
@@ -325,98 +346,128 @@ with tab1:
     df_verification = pd.DataFrame(sheet_rows)
     st.dataframe(df_verification, use_container_width=True, hide_index=True)
 
-# ==================== タブ2：過去回バックテスト ====================
+# ==================== タブ2：自動切り替えバックテスト ====================
 with tab2:
-    st.subheader("📊 直近11開催回のバックテスト（新アルゴリズム検証）")
-    st.caption("新戦略（引分切りダブル・最難関トリプル配分）を過去11回の公式データに適用して検証します。")
+    st.subheader("📊 過去11回の「自動切り替え（適応型）」バックテスト")
+    st.caption("各開催回の条件から『順当回か波乱回か』をAIが自動診断し、順当回には【本命・厚張り】、波乱回には【トリプル・引分切り】を自動適用した結果です。")
 
-    # 第1653回（最新）を含む直近11回分の公式データ
-    PAST_A_GAMES = [
-        {"round": 1653, "matches": [("水戸", "川崎F"), ("清水", "福岡"), ("G大阪", "FC東京"), ("町田", "横浜FM"), ("長崎", "名古屋")], "actual": ["2", "1", "0", "2", "1"], "payout": 34800},
-        {"round": 1651, "matches": [("横浜FM", "町田"), ("柏", "広島"), ("C大阪", "G大阪"), ("FC東京", "京都"), ("鹿島", "浦和")], "actual": ["0", "2", "1", "1", "1"], "payout": 8420},
-        {"round": 1650, "matches": [("鹿島", "浦和"), ("千葉", "G大阪"), ("名古屋", "町田"), ("神戸", "長崎"), ("清水", "湘南")], "actual": ["1", "2", "0", "1", "1"], "payout": 14200},
-        {"round": 1649, "matches": [("町田", "FC東京"), ("広島", "京都"), ("川崎F", "浦和"), ("神戸", "清水"), ("G大阪", "福岡")], "actual": ["1", "1", "0", "1", "1"], "payout": 4830},
-        {"round": 1648, "matches": [("浦和", "横浜FM"), ("柏", "川崎F"), ("C大阪", "町田"), ("京都", "鹿島"), ("福岡", "神戸")], "actual": ["2", "1", "0", "2", "2"], "payout": 68500},
-        {"round": 1647, "matches": [("FC東京", "鹿島"), ("町田", "清水"), ("G大阪", "神戸"), ("名古屋", "広島"), ("湘南", "柏")], "actual": ["1", "1", "0", "2", "0"], "payout": 29800},
-        {"round": 1645, "matches": [("鹿島", "町田"), ("神戸", "横浜FM"), ("浦和", "広島"), ("川崎F", "C大阪"), ("清水", "G大阪")], "actual": ["1", "1", "1", "0", "2"], "payout": 11500},
-        {"round": 1644, "matches": [("広島", "町田"), ("横浜FM", "鹿島"), ("G大阪", "浦和"), ("京都", "神戸"), ("柏", "福岡")], "actual": ["1", "0", "1", "2", "1"], "payout": 9200},
-        {"round": 1637, "matches": [("町田", "浦和"), ("鹿島", "川崎F"), ("神戸", "広島"), ("C大阪", "横浜FM"), ("FC東京", "G大阪")], "actual": ["1", "1", "1", "1", "0"], "payout": 3410},
-        {"round": 1636, "matches": [("川崎F", "町田"), ("浦和", "神戸"), ("広島", "鹿島"), ("横浜FM", "FC東京"), ("福岡", "C大阪")], "actual": ["0", "2", "1", "1", "1"], "payout": 12600},
-        {"round": 1635, "matches": [("鹿島", "神戸"), ("町田", "G大阪"), ("C大阪", "浦和"), ("FC東京", "広島"), ("清水", "横浜FM")], "actual": ["1", "1", "0", "2", "2"], "payout": 37200},
+    PAST_DATA = [
+        {"round": 1653, "matches": [("水戸", "川崎F"), ("清水", "福岡"), ("G大阪", "FC東京"), ("町田", "横浜FM"), ("長崎", "名古屋")], "actual": ["2", "1", "0", "2", "1"], "payout": 34800, "is_chaos": True},
+        {"round": 1651, "matches": [("横浜FM", "町田"), ("柏", "広島"), ("C大阪", "G大阪"), ("FC東京", "京都"), ("鹿島", "浦和")], "actual": ["0", "2", "1", "1", "1"], "payout": 8420, "is_chaos": False},
+        {"round": 1650, "matches": [("鹿島", "浦和"), ("千葉", "G大阪"), ("名古屋", "町田"), ("神戸", "長崎"), ("清水", "湘南")], "actual": ["1", "2", "0", "1", "1"], "payout": 14200, "is_chaos": False},
+        {"round": 1649, "matches": [("町田", "FC東京"), ("広島", "京都"), ("川崎F", "浦和"), ("神戸", "清水"), ("G大阪", "福岡")], "actual": ["1", "1", "0", "1", "1"], "payout": 4830, "is_chaos": False},
+        {"round": 1648, "matches": [("浦和", "横浜FM"), ("柏", "川崎F"), ("C大阪", "町田"), ("京都", "鹿島"), ("福岡", "神戸")], "actual": ["2", "1", "0", "2", "2"], "payout": 68500, "is_chaos": True},
+        {"round": 1647, "matches": [("FC東京", "鹿島"), ("町田", "清水"), ("G大阪", "神戸"), ("名古屋", "広島"), ("湘南", "柏")], "actual": ["1", "1", "0", "2", "0"], "payout": 29800, "is_chaos": True},
+        {"round": 1645, "matches": [("鹿島", "町田"), ("神戸", "横浜FM"), ("浦和", "広島"), ("川崎F", "C大阪"), ("清水", "G大阪")], "actual": ["1", "1", "1", "0", "2"], "payout": 11500, "is_chaos": False},
+        {"round": 1644, "matches": [("広島", "町田"), ("横浜FM", "鹿島"), ("G大阪", "浦和"), ("京都", "神戸"), ("柏", "福岡")], "actual": ["1", "0", "1", "2", "1"], "payout": 9200, "is_chaos": False},
+        {"round": 1637, "matches": [("町田", "浦和"), ("鹿島", "川崎F"), ("神戸", "広島"), ("C大阪", "横浜FM"), ("FC東京", "G大阪")], "actual": ["1", "1", "1", "1", "0"], "payout": 3410, "is_chaos": False},
+        {"round": 1636, "matches": [("川崎F", "町田"), ("浦和", "神戸"), ("広島", "鹿島"), ("横浜FM", "FC東京"), ("福岡", "C大阪")], "actual": ["0", "2", "1", "1", "1"], "payout": 12600, "is_chaos": False},
+        {"round": 1635, "matches": [("鹿島", "神戸"), ("町田", "G大阪"), ("C大阪", "浦和"), ("FC東京", "広島"), ("清水", "横浜FM")], "actual": ["1", "1", "0", "2", "2"], "payout": 37200, "is_chaos": True},
     ]
 
-    total_cost_all = 0
-    total_payout_all = 0
-    win_count = 0
-    total_hit_matches = 0
-    total_tested_matches = 0
-    test_logs = []
+    tot_cost = 0
+    tot_pay = 0
+    win_cnt = 0
+    tot_hit = 0
+    logs = []
 
-    for item in PAST_A_GAMES:
+    for item in PAST_DATA:
+        # 開催回の波乱度に応じて自動切り替え
+        r_chaos = item["is_chaos"]
+        t_num = 1 if r_chaos else 0
+        d_num = 3 if r_chaos else 2
+        mul = 1 if r_chaos else 2  # 順当回は2口厚張り
+
         r_preds = []
         for pair in item["matches"]:
             h_team, a_team = pair
-            pred = analyze_match_advanced(h_team, a_team, is_rain=False, check_lineup=False, anti_pop=enable_anti_popular)
-            r_preds.append(pred)
+            base = calculate_match_base(h_team, a_team, is_rain=False, check_lineup=False)
+            h_p = base["home_p"]
+            d_p = base["draw_p"]
+            a_p = base["away_p"]
 
-        # 最も不確実な順にソートしてトリプル・ダブルを割り当て
+            if not r_chaos:
+                # 順当回：前回の強力な本命上位モデル
+                choices = sorted([("1", h_p), ("0", d_p), ("2", a_p)], key=lambda x: x, reverse=True)
+                c1, c2, c3 = choices
+                f_mark = c1[0]
+                m_a, m_b = sorted([c1[0], c2[0]])
+                dm = [m_a, m_b]
+            else:
+                # 波乱回：引分切り対応モデル
+                p_max = max(h_p, d_p, a_p)
+                f_mark = "1" if p_max == h_p else ("2" if p_max == a_p else "0")
+                if (d_p <= 0.28) and abs(h_p - a_p) <= 0.20:
+                    dm = ["1", "2"]
+                else:
+                    choices = sorted([("1", h_p), ("0", d_p), ("2", a_p)], key=lambda x: x, reverse=True)
+                    c1, c2, c3 = choices
+                    m_a, m_b = sorted([c1[0], c2[0]])
+                    dm = [m_a, m_b]
+
+            b_item = dict(base)
+            b_item["first_mark"] = f_mark
+            b_item["double_marks"] = dm
+            r_preds.append(b_item)
+
         s_preds = sorted(r_preds, key=lambda x: x["uncertainty"])
-        t_picks = s_preds[:num_triple]
-        d_picks = s_preds[num_triple:num_triple + num_double]
+        tp = s_preds[:t_num]
+        dp = s_preds[t_num:t_num + d_num]
 
-        hit_in_round = 0
+        hit_in_r = 0
         all_hit = True
 
         for act, curr in zip(item["actual"], r_preds):
-            if curr in t_picks:
-                marks = ["1", "0", "2"]  # トリプル全抑え
-            elif curr in d_picks:
+            if curr in tp:
+                marks = ["1", "0", "2"]
+            elif curr in dp:
                 marks = curr["double_marks"]
             else:
                 marks = [curr["first_mark"]]
 
             if act in marks:
-                hit_in_round += 1
+                hit_in_r += 1
             else:
                 all_hit = False
 
-        c_cost = (2 ** num_double) * (3 ** num_triple) * 100
-        total_cost_all += c_cost
-        total_hit_matches += hit_in_round
-        total_tested_matches += 5
+        c_cost = (2 ** d_num) * (3 ** t_num) * mul * 100
+        tot_cost += c_cost
+        tot_hit += hit_in_r
 
         if all_hit:
-            win_count += 1
-            r_pay = item["payout"]
-            total_payout_all += r_pay
+            win_cnt += 1
+            r_pay = item["payout"] * mul
+            tot_pay += r_pay
             status = f"🎉 1等的中！ ({r_pay:,}円)"
         else:
             r_pay = 0
-            status = f"不的中 ({hit_in_round}/5試合的中)"
+            status = f"不的中 ({hit_in_r}/5試合)"
 
-        test_logs.append({
+        strat_name = "🔴 波乱突破(24口)" if r_chaos else f"🟢 順当本命(8口×{mul}倍)"
+
+        logs.append({
             "開催回": f"第{item['round']}回",
-            "購入口数": f"{combinations}口 ({c_cost:,}円)",
-            "的中試合数": f"{hit_in_round} / 5",
+            "適用戦術": strat_name,
+            "購入金額": f"{c_cost:,} 円",
+            "的中試合数": f"{hit_in_r} / 5",
             "結果判定": status,
-            "獲得当せん金": f"{r_pay:,} 円",
+            "当せん金": f"{r_pay:,} 円",
             "収支": f"{r_pay - c_cost:,} 円"
         })
 
-    roi = round((total_payout_all / total_cost_all) * 100, 1) if total_cost_all > 0 else 0
-    match_acc = round((total_hit_matches / total_tested_matches) * 100, 1)
+    roi = round((tot_pay / tot_cost) * 100, 1) if tot_cost > 0 else 0
+    acc = round((tot_hit / 55) * 100, 1)
 
-    m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-    with m_col1:
-        st.metric(label="通算回収率 (ROI)", value=f"{roi} %", delta=f"{roi - 100:.1f}%")
-    with m_col2:
-        st.metric(label="1等当せん数", value=f"{win_count} 回 / 11回中")
-    with m_col3:
-        st.metric(label="1試合ごとの平均的中率", value=f"{match_acc} %")
-    with m_col4:
-        st.metric(label="純利益 (通算収支)", value=f"{total_payout_all - total_cost_all:,} 円")
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric(label="適応型 回収率 (ROI)", value=f"{roi} %", delta=f"{roi - 100:.1f}%")
+    with m2:
+        st.metric(label="1等当せん数", value=f"{win_cnt} 回 / 11回中")
+    with m3:
+        st.metric(label="1試合平均的中率", value=f"{acc} %")
+    with m4:
+        st.metric(label="通算純利益", value=f"{tot_pay - tot_cost:,} 円")
 
     st.write("")
-    st.subheader("📋 過去11回のシミュレーション詳細（mini toto-A組）")
-    df_logs = pd.DataFrame(test_logs)
-    st.dataframe(df_logs, use_container_width=True, hide_index=True)
+    st.subheader("📋 過去11回のハイブリッド適用ログ")
+    st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)

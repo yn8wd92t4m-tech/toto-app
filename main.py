@@ -10,9 +10,9 @@ st.set_page_config(page_title="toto予想シミュレーター", page_icon="⚽"
 
 st.title("⚽ サッカーくじ toto 予想シミュレーター")
 
-# --- 締切カウントダウン（日本時間固定） ---
+# --- 締切カウントダウン（第1654回・日本時間固定） ---
 JST = ZoneInfo("Asia/Tokyo")
-DEADLINE = datetime.datetime(2026, 9, 12, 17, 50, 0, tzinfo=JST)
+DEADLINE = datetime.datetime(2026, 9, 19, 17, 50, 0, tzinfo=JST)
 now = datetime.datetime.now(JST)
 remaining = DEADLINE - now
 
@@ -22,27 +22,19 @@ if remaining.total_seconds() > 0:
     rem_hours = (total_sec % 86400) // 3600
     rem_mins = (total_sec % 3600) // 60
     time_text = f"{rem_days}日 {rem_hours}時間 {rem_mins}分" if rem_days > 0 else f"{rem_hours}時間 {rem_mins}分"
-    st.warning(f"⏳ **第1653回 toto 販売締切（ネット決済）まで：あと {time_text}** （締切: 9/12 17:50）")
+    st.warning(f"⏳ **第1654回 toto 販売締切（ネット決済）まで：あと {time_text}** （締切: 9/19 17:50）")
 else:
-    st.info("📢 第1653回 toto の販売は終了しました。")
+    st.info("📢 第1654回 toto の販売は終了しました。")
 
 st.caption("最新順位・気象API・公式出場停止・スタメン速報・トリガミ防止最適化を完全統合した本格モデル。")
 
-# --- スタジアム気象・屋根データベース（公式会場） ---
+# --- スタジアム気象・屋根データベース（第1654回 会場対応） ---
 STADIUM_DB = {
-    "水戸": {"lat": 36.345, "lon": 140.412, "name": "水戸信ス", "roof": False},
-    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
-    "G大阪": {"lat": 34.809, "lon": 135.543, "name": "パナスタ", "roof": False},
-    "町田": {"lat": 35.678, "lon": 139.715, "name": "MUFG国立", "roof": False},
-    "長崎": {"lat": 32.837, "lon": 129.980, "name": "トラスタ", "roof": False},
-    "広島": {"lat": 34.398, "lon": 132.453, "name": "Eピース", "roof": False},
-    "東京V": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
+    "福岡": {"lat": 33.585, "lon": 130.460, "name": "ベススタ", "roof": False},
     "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
-    "今治": {"lat": 34.062, "lon": 132.997, "name": "アシさと", "roof": False},
-    "いわき": {"lat": 37.011, "lon": 140.865, "name": "ハワスタ", "roof": False},
-    "八戸": {"lat": 40.543, "lon": 141.528, "name": "プラスタ", "roof": False},
-    "甲府": {"lat": 35.622, "lon": 138.590, "name": "JITス", "roof": False},
-    "秋田": {"lat": 39.721, "lon": 140.103, "name": "ソユスタ", "roof": False},
+    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
+    "岡山": {"lat": 34.681, "lon": 133.919, "name": "JFEス", "roof": False},
+    "FC東京": {"lat": 35.678, "lon": 139.715, "name": "MUFG国立", "roof": False},
     "神戸": {"lat": 34.656, "lon": 135.169, "name": "ノエスタ", "roof": True},
     "札幌": {"lat": 43.015, "lon": 141.409, "name": "札幌ドーム", "roof": True},
 }
@@ -53,33 +45,20 @@ DERBIES = [
     ({"G大阪", "C大阪"}, "🔥 大阪ダービー"),
     ({"横浜FM", "川崎F"}, "🔥 神奈川ダービー"),
     ({"FC東京", "東京V"}, "🔥 東京ダービー"),
-    ({"町田", "横浜FM"}, "🔥 境川決戦"),
-    ({"山形", "秋田"}, "🔥 奥羽本戦"),
-    ({"東京V", "千葉"}, "🔥 首都圏バトル"),
+    ({"浦和", "東京V"}, "🔥 首都圏対決"),
+    ({"清水", "千葉"}, "🔥 オリ10対決"),
 ]
 
 # --- 絶好調ストライカー ---
 TOP_SCORERS = {
-    "水戸": "渡邉 新太 (5点/得点ランク2位)",
-    "横浜FM": "谷村 海那 (5点/得点ランク2位)",
+    "広島": "加藤 陸次樹",
+    "清水": "北川 航也",
+    "名古屋": "パトリック",
 }
 
-# --- 過密日程チーム ---
-FATIGUE_TEAMS = {"川崎F", "町田", "G大阪", "名古屋"}
-
-# --- Jリーグ公式 出場停止選手 ---
-SUSPENDED_PLAYERS = {
-    "清水": "住吉 ジェラニレショーン (主力CB)",
-    "岡山": "オベルダン (主力MF)",
-    "湘南": "小野瀬 康介 (MF)",
-    "秋田": "土井 紅貴 (MF)",
-}
-
-# --- 直前スタメン速報 ---
-LINEUP_ALERTS = {
-    "FC東京": "主力MFが急遽ベンチスタート（コンディション調整）",
-    "横浜FM": "主力DFが欠場",
-}
+FATIGUE_TEAMS = {"広島", "川崎F", "町田"}
+SUSPENDED_PLAYERS = {}
+LINEUP_ALERTS = {}
 
 # --- 気象API取得 ---
 @st.cache_data(ttl=1800)
@@ -118,11 +97,9 @@ st.sidebar.metric(label="⏳ 投票締切まで", value=time_text if remaining.t
 
 toto_type = st.sidebar.radio(
     "🎟️ 対象くじの選択",
-    ["mini toto-A組 (第1〜5試合)", "mini toto-B組 (第6〜10試合)", "通常 toto (全13試合)"],
+    ["mini toto-A組 (第1〜5試合)"],
     index=0
 )
-is_full_toto = ("通常" in toto_type)
-is_mini_b = ("B組" in toto_type)
 
 if st.sidebar.button("🔄 最新データを再取得"):
     st.cache_data.clear()
@@ -132,13 +109,12 @@ st.sidebar.divider()
 
 enable_lineup_check = st.sidebar.checkbox("🚨 直前スタメン速報を反映（キックオフ2時間前〜）", value=True)
 auto_anti_trigami = st.sidebar.checkbox("🛡️ トリガミ防止オート（最低配当＞購入額で最大化）", value=True)
-
 strategy = st.sidebar.radio("🎯 予想スタイル", ["本命重視（堅実）", "バランス", "大穴・波乱狙い（高配当）"], index=1)
 
 st.sidebar.divider()
 st.sidebar.subheader("🎫 マルチ購入設定")
-max_d = 8 if is_full_toto else 5
-max_t = 4 if is_full_toto else 2
+max_d = 5
+max_t = 2
 
 df_standings = fetch_jleague_standings()
 team_dict = {}
@@ -166,29 +142,16 @@ def get_team_info(name):
             return v
     return {"rank": 14, "pts": 7}
 
-# 第1653回 公式正式カード（全13試合）
-official_1653_matches = [
-    {"no": 1, "home": "水戸", "away": "川崎F"},
-    {"no": 2, "home": "清水", "away": "福岡"},
-    {"no": 3, "home": "G大阪", "away": "FC東京"},
-    {"no": 4, "home": "町田", "away": "横浜FM"},
-    {"no": 5, "home": "長崎", "away": "名古屋"},
-    {"no": 6, "home": "広島", "away": "C大阪"},
-    {"no": 7, "home": "東京V", "away": "千葉"},
-    {"no": 8, "home": "浦和", "away": "岡山"},
-    {"no": 9, "home": "今治", "away": "鳥栖"},
-    {"no": 10, "home": "いわき", "away": "横浜FC"},
-    {"no": 11, "home": "八戸", "away": "湘南"},
-    {"no": 12, "home": "甲府", "away": "磐田"},
-    {"no": 13, "home": "秋田", "away": "徳島"},
+# --- 第1654回 mini toto-A組（公式指定試合 1〜5） ---
+official_1654_matches = [
+    {"no": 1, "home": "福岡", "away": "広島"},
+    {"no": 2, "home": "浦和", "away": "東京V"},
+    {"no": 3, "home": "清水", "away": "千葉"},
+    {"no": 4, "home": "岡山", "away": "京都"},
+    {"no": 5, "home": "FC東京", "away": "名古屋"},
 ]
 
-if is_mini_b:
-    raw_matches = official_1653_matches[5:10]
-elif is_full_toto:
-    raw_matches = official_1653_matches[:13]
-else:
-    raw_matches = official_1653_matches[:5]
+raw_matches = official_1654_matches
 
 # --- 勝率・波乱度の総合計算 ---
 matches = []
@@ -262,7 +225,7 @@ for rm in raw_matches:
     elif h_susp or a_susp:
         notes.append("🟥 出場停止")
     if h_scorer or a_scorer:
-        notes.append("⚽ 得点王在籍")
+        notes.append("⚽ 好調選手在籍")
 
     matches.append({
         "no": rm["no"],
@@ -306,20 +269,15 @@ for m in matches:
 
 sorted_matches = sorted(matches, key=lambda x: x["uncertainty_score"])
 
-# --- トリガミ防止オート計算 ---
+# トリガミ防止オート
 popular_probs = [max(m["home_p"], m["draw_p"], m["away_p"]) for m in matches]
 min_combo_prob = 1.0
 for p in popular_probs:
     min_combo_prob *= p
 
-if not is_full_toto:
-    fund = 15000000
-    estimated_min_payout = int((fund * 0.00005) / max(min_combo_prob, 0.005))
-    estimated_min_payout = max(min(estimated_min_payout, 15000), 2500)
-else:
-    fund = 200000000
-    estimated_min_payout = int((fund * 0.0001) / max(min_combo_prob, 0.0001))
-    estimated_min_payout = max(estimated_min_payout, 50000)
+fund = 15000000
+estimated_min_payout = int((fund * 0.00005) / max(min_combo_prob, 0.005))
+estimated_min_payout = max(min(estimated_min_payout, 15000), 2500)
 
 if auto_anti_trigami:
     safe_max_cost = estimated_min_payout * 0.8
@@ -346,7 +304,7 @@ st.sidebar.metric(label="推定最低当せん金", value=f"{estimated_min_payou
 triple_nos = [m["no"] for m in sorted_matches[:num_triple]]
 double_nos = [m["no"] for m in sorted_matches[num_triple:num_triple + num_double]]
 
-st.subheader(f"📋 【{toto_type}】 第1653回 公式カード＆推奨買い目")
+st.subheader("📋 第1654回 mini toto-A組 最新公式予想＆推奨買い目")
 
 results = []
 

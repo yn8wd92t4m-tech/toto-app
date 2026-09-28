@@ -10,45 +10,104 @@ st.set_page_config(page_title="mini toto予想ナビゲーター", page_icon="�
 
 st.title("⚽ サッカーくじ mini toto 予想ナビゲーター")
 
-# --- 締切カウントダウン（第1656回・日本時間固定） ---
+# --- 開催回スケジュールマスター（先々までストック） ---
 JST = ZoneInfo("Asia/Tokyo")
-DEADLINE = datetime.datetime(2026, 9, 26, 16, 50, 0, tzinfo=JST)
 now = datetime.datetime.now(JST)
-remaining = DEADLINE - now
 
+ROUNDS_SCHEDULE = {
+    "第1657回 (9/29 火 開催)": {
+        "deadline": datetime.datetime(2026, 9, 29, 18, 50, 0, tzinfo=JST),
+        "round_num": 1657,
+        "matches": [
+            {"no": 1, "home": "札幌", "away": "岡山"},
+            {"no": 2, "home": "栃木C", "away": "広島"},
+            {"no": 3, "home": "磐田", "away": "千葉"},
+            {"no": 4, "home": "金沢", "away": "清水"},
+            {"no": 5, "home": "FC大阪", "away": "福岡"},
+        ]
+    },
+    "第1658回 (10/3 土 開催)": {
+        "deadline": datetime.datetime(2026, 10, 3, 13, 50, 0, tzinfo=JST),
+        "round_num": 1658,
+        "matches": [
+            {"no": 1, "home": "町田", "away": "川崎F"},
+            {"no": 2, "home": "浦和", "away": "神戸"},
+            {"no": 3, "home": "横浜FM", "away": "G大阪"},
+            {"no": 4, "home": "清水", "away": "福岡"},
+            {"no": 5, "home": "名古屋", "away": "広島"},
+        ]
+    }
+}
+
+# 現在時刻から自動で「現在販売中の最新回」を自動判定
+auto_selected_key = "第1658回 (10/3 土 開催)"
+for r_key, r_info in ROUNDS_SCHEDULE.items():
+    if now < r_info["deadline"]:
+        auto_selected_key = r_key
+        break
+
+# --- サイドバー ---
+st.sidebar.header("⚙️ 開催回・予想設定")
+
+# 更新ボタン
+if st.sidebar.button("🔄 最新データを更新・再取得"):
+    st.cache_data.clear()
+    st.rerun()
+
+round_keys = list(ROUNDS_SCHEDULE.keys())
+def_idx = round_keys.index(auto_selected_key) if auto_selected_key in round_keys else 0
+
+selected_round_key = st.sidebar.selectbox("🎟️ 対象の開催回", round_keys, index=def_idx)
+current_round_data = ROUNDS_SCHEDULE[selected_round_key]
+DEADLINE = current_round_data["deadline"]
+raw_matches = current_round_data["matches"]
+round_num = current_round_data["round_num"]
+
+# 締切カウントダウン
+remaining = DEADLINE - now
 if remaining.total_seconds() > 0:
     total_sec = int(remaining.total_seconds())
     rem_days = total_sec // 86400
     rem_hours = (total_sec % 86400) // 3600
     rem_mins = (total_sec % 3600) // 60
     time_text = f"{rem_days}日 {rem_hours}時間 {rem_mins}分" if rem_days > 0 else f"{rem_hours}時間 {rem_mins}分"
-    st.warning(f"⏳ **第1656回 mini toto 販売締切まで：あと {time_text}** （締切: 9/26 16:50）")
+    st.warning(f"⏳ **第{round_num}回 mini toto 販売締切まで：あと {time_text}** （締切: {DEADLINE.strftime('%m/%d %H:%M')}）")
+    st.sidebar.metric(label="⏳ 投票締切まで", value=time_text)
 else:
-    st.info("📢 第1656回 toto の販売は終了しました。")
+    st.info(f"📢 第{round_num}回 toto の販売は終了しました。")
+    st.sidebar.metric(label="⏳ 投票締切まで", value="受付終了")
 
-st.caption("J2公式順位・気象API・出場停止・スタメン速報・トリガミ防止最適化を完全統合した本格モデル。")
+st.caption("最新順位・気象API・出場停止・スタメン速報・トリガミ防止最適化を完全統合した本格モデル。")
 
-# --- スタジアム気象・屋根データベース（第1656回 会場対応） ---
+# --- スタジアム気象・屋根データベース ---
 STADIUM_DB = {
-    "山形": {"lat": 38.337, "lon": 140.378, "name": "NDスタ", "roof": False},
-    "富山": {"lat": 36.637, "lon": 137.195, "name": "富山総運", "roof": False},
-    "徳島": {"lat": 34.168, "lon": 134.618, "name": "鳴門大塚", "roof": False},
-    "大宮": {"lat": 35.916, "lon": 139.633, "name": "NACK", "roof": False},
-    "宮崎": {"lat": 32.062, "lon": 131.472, "name": "いちご", "roof": False},
+    "札幌": {"lat": 43.015, "lon": 141.409, "name": "札幌ドーム", "roof": True},
+    "栃木C": {"lat": 36.568, "lon": 139.878, "name": "栃木グリ", "roof": False},
+    "磐田": {"lat": 34.724, "lon": 137.876, "name": "ヤマハ", "roof": False},
+    "金沢": {"lat": 36.588, "lon": 136.657, "name": "ゴースタ", "roof": False},
+    "FC大阪": {"lat": 34.667, "lon": 135.626, "name": "花園", "roof": False},
+    "町田": {"lat": 35.592, "lon": 139.438, "name": "Gスタ", "roof": False},
+    "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
+    "横浜FM": {"lat": 35.510, "lon": 139.606, "name": "日産ス", "roof": False},
+    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
+    "名古屋": {"lat": 35.084, "lon": 137.170, "name": "豊田ス", "roof": False},
 }
 
 # ダービー・注目カード
 DERBIES = [
-    ({"山形", "秋田"}, "🔥 奥羽本戦"),
-    ({"富山", "金沢"}, "🔥 北陸ダービー"),
+    ({"清水", "磐田"}, "🔥 静岡ダービー"),
+    ({"G大阪", "C大阪"}, "🔥 大阪ダービー"),
+    ({"横浜FM", "川崎F"}, "🔥 神奈川ダービー"),
+    ({"浦和", "FC東京"}, "🔥 首都圏バトル"),
 ]
 
 TOP_SCORERS = {
-    "富山": "マテウス・レイリア",
-    "横浜FC": "櫻川 ソロモン",
+    "広島": "加藤 陸次樹",
+    "清水": "北川 航也",
+    "磐田": "ジャーメイン 良",
 }
 
-FATIGUE_TEAMS = {"鳥栖", "栃木C", "甲府"}
+FATIGUE_TEAMS = {"広島", "清水", "福岡"}
 SUSPENDED_PLAYERS = {}
 LINEUP_ALERTS = {}
 
@@ -72,7 +131,7 @@ def fetch_weather(home_team):
 # --- Jリーグ順位表自動取得 ---
 @st.cache_data(ttl=3600)
 def fetch_jleague_standings():
-    url = "https://soccer.yahoo.co.jp/jleague/category/j2/standings"
+    url = "https://soccer.yahoo.co.jp/jleague/category/j1/standings"
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         res = requests.get(url, headers=headers, timeout=10)
@@ -83,14 +142,6 @@ def fetch_jleague_standings():
         pass
     return None
 
-# --- サイドバー ---
-st.sidebar.header("⚙️ 予想・購入設定")
-st.sidebar.metric(label="⏳ 投票締切まで", value=time_text if remaining.total_seconds() > 0 else "受付終了")
-
-if st.sidebar.button("🔄 最新データを再取得"):
-    st.cache_data.clear()
-    st.rerun()
-
 st.sidebar.divider()
 enable_lineup_check = st.sidebar.checkbox("🚨 直前スタメン速報を反映（キックオフ2時間前〜）", value=True)
 auto_anti_trigami = st.sidebar.checkbox("🛡️ トリガミ防止オート（最低配当＞購入額で最大化）", value=True)
@@ -99,8 +150,6 @@ strategy = st.sidebar.radio("🎯 予想スタイル", ["本命重視（堅実�
 df_standings = fetch_jleague_standings()
 team_dict = {}
 if df_standings is not None:
-    with st.expander("📊 Webから取得した最新J2順位表を確認する"):
-        st.dataframe(df_standings, use_container_width=True)
     for _, row in df_standings.iterrows():
         t_name = str(row.get("チーム名", "")).strip()
         r_val = row.get("順位", 10)
@@ -120,20 +169,14 @@ def get_team_info(name):
     for k, v in team_dict.items():
         if name in k or k in name:
             return v
-    # デフォルトのJ2目安順位
-    defaults = {"富山": {"rank": 3, "pts": 45}, "横浜FC": {"rank": 4, "pts": 44}, "栃木C": {"rank": 8, "pts": 38}, "山形": {"rank": 11, "pts": 32}, "鳥栖": {"rank": 15, "pts": 28}, "札幌": {"rank": 19, "pts": 20}}
+    # カップ戦・混在用の目安
+    defaults = {
+        "広島": {"rank": 2, "pts": 55}, "神戸": {"rank": 3, "pts": 52}, "町田": {"rank": 4, "pts": 50},
+        "G大阪": {"rank": 5, "pts": 48}, "清水": {"rank": 6, "pts": 45}, "福岡": {"rank": 8, "pts": 40},
+        "千葉": {"rank": 11, "pts": 36}, "磐田": {"rank": 14, "pts": 32}, "岡山": {"rank": 12, "pts": 34},
+        "札幌": {"rank": 18, "pts": 22}, "栃木C": {"rank": 19, "pts": 20}, "金沢": {"rank": 19, "pts": 20}, "FC大阪": {"rank": 19, "pts": 20}
+    }
     return defaults.get(name, {"rank": 12, "pts": 30})
-
-# --- 第1656回 mini toto-A組（公式指定試合 1〜5） ---
-official_1656_matches = [
-    {"no": 1, "home": "山形", "away": "鳥栖"},
-    {"no": 2, "home": "富山", "away": "横浜FC"},
-    {"no": 3, "home": "徳島", "away": "栃木C"},
-    {"no": 4, "home": "大宮", "away": "甲府"},
-    {"no": 5, "home": "宮崎", "away": "札幌"},
-]
-
-raw_matches = official_1656_matches
 
 # --- 勝率・波乱度の総合計算 ---
 matches = []
@@ -259,7 +302,7 @@ for p in popular_probs:
 
 fund = 15000000
 estimated_min_payout = int((fund * 0.00005) / max(min_combo_prob, 0.005))
-estimated_min_payout = max(min(estimated_min_payout, 25000), 4000)
+estimated_min_payout = max(min(estimated_min_payout, 20000), 3000)
 
 max_d = 5
 max_t = 2
@@ -289,7 +332,7 @@ st.sidebar.metric(label="推定最低当せん金", value=f"{estimated_min_payou
 triple_nos = [m["no"] for m in sorted_matches[:num_triple]]
 double_nos = [m["no"] for m in sorted_matches[num_triple:num_triple + num_double]]
 
-st.subheader("📋 第1656回 mini toto-A組（J2メイン）最新予想＆推奨買い目")
+st.subheader(f"📋 【{selected_round_key}】 mini toto-A組 最新予想＆推奨買い目")
 
 results = []
 

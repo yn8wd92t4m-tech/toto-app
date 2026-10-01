@@ -10,12 +10,23 @@ st.set_page_config(page_title="mini toto予想ナビゲーター", page_icon="�
 
 st.title("⚽ サッカーくじ mini toto 予想ナビゲーター")
 
-# --- 開催回スケジュールマスター（先々までストック） ---
+# --- 開催回スケジュールマスター ---
 JST = ZoneInfo("Asia/Tokyo")
 now = datetime.datetime.now(JST)
 
 ROUNDS_SCHEDULE = {
-    "第1657回 (9/29 火 開催)": {
+    "第1658回 (10/3 土 開催)": {
+        "deadline": datetime.datetime(2026, 10, 3, 13, 50, 0, tzinfo=JST),
+        "round_num": 1658,
+        "matches": [
+            {"no": 1, "home": "町田", "away": "京都"},
+            {"no": 2, "home": "柏", "away": "G大阪"},
+            {"no": 3, "home": "藤枝", "away": "湘南"},
+            {"no": 4, "home": "甲府", "away": "富山"},
+            {"no": 5, "home": "大分", "away": "山形"},
+        ]
+    },
+    "第1657回 (9/29 火 開催・終了)": {
         "deadline": datetime.datetime(2026, 9, 29, 18, 50, 0, tzinfo=JST),
         "round_num": 1657,
         "matches": [
@@ -25,26 +36,8 @@ ROUNDS_SCHEDULE = {
             {"no": 4, "home": "金沢", "away": "清水"},
             {"no": 5, "home": "FC大阪", "away": "福岡"},
         ]
-    },
-    "第1658回 (10/3 土 開催)": {
-        "deadline": datetime.datetime(2026, 10, 3, 13, 50, 0, tzinfo=JST),
-        "round_num": 1658,
-        "matches": [
-            {"no": 1, "home": "町田", "away": "川崎F"},
-            {"no": 2, "home": "浦和", "away": "神戸"},
-            {"no": 3, "home": "横浜FM", "away": "G大阪"},
-            {"no": 4, "home": "清水", "away": "福岡"},
-            {"no": 5, "home": "名古屋", "away": "広島"},
-        ]
     }
 }
-
-# 現在時刻から自動で「現在販売中の最新回」を自動判定
-auto_selected_key = "第1658回 (10/3 土 開催)"
-for r_key, r_info in ROUNDS_SCHEDULE.items():
-    if now < r_info["deadline"]:
-        auto_selected_key = r_key
-        break
 
 # --- サイドバー ---
 st.sidebar.header("⚙️ 開催回・予想設定")
@@ -55,9 +48,15 @@ if st.sidebar.button("🔄 最新データを更新・再取得"):
     st.rerun()
 
 round_keys = list(ROUNDS_SCHEDULE.keys())
-def_idx = round_keys.index(auto_selected_key) if auto_selected_key in round_keys else 0
 
-selected_round_key = st.sidebar.selectbox("🎟️ 対象の開催回", round_keys, index=def_idx)
+# セレクトボックス（バグ解消：key指定でリセットを防止）
+selected_round_key = st.sidebar.selectbox(
+    "🎟️ 対象の開催回",
+    round_keys,
+    index=0,
+    key="round_select_box"
+)
+
 current_round_data = ROUNDS_SCHEDULE[selected_round_key]
 DEADLINE = current_round_data["deadline"]
 raw_matches = current_round_data["matches"]
@@ -79,35 +78,32 @@ else:
 
 st.caption("最新順位・気象API・出場停止・スタメン速報・トリガミ防止最適化を完全統合した本格モデル。")
 
-# --- スタジアム気象・屋根データベース ---
+# --- スタジアム気象・屋根データベース（第1658回 会場対応） ---
 STADIUM_DB = {
-    "札幌": {"lat": 43.015, "lon": 141.409, "name": "札幌ドーム", "roof": True},
-    "栃木C": {"lat": 36.568, "lon": 139.878, "name": "栃木グリ", "roof": False},
-    "磐田": {"lat": 34.724, "lon": 137.876, "name": "ヤマハ", "roof": False},
-    "金沢": {"lat": 36.588, "lon": 136.657, "name": "ゴースタ", "roof": False},
-    "FC大阪": {"lat": 34.667, "lon": 135.626, "name": "花園", "roof": False},
     "町田": {"lat": 35.592, "lon": 139.438, "name": "Gスタ", "roof": False},
-    "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
-    "横浜FM": {"lat": 35.510, "lon": 139.606, "name": "日産ス", "roof": False},
+    "柏": {"lat": 35.848, "lon": 139.975, "name": "三協F柏", "roof": False},
+    "藤枝": {"lat": 34.872, "lon": 138.257, "name": "藤枝サ", "roof": False},
+    "甲府": {"lat": 35.622, "lon": 138.590, "name": "JITス", "roof": False},
+    "大分": {"lat": 33.200, "lon": 131.657, "name": "クラド", "roof": True},
+    "札幌": {"lat": 43.015, "lon": 141.409, "name": "札幌ドーム", "roof": True},
+    "磐田": {"lat": 34.724, "lon": 137.876, "name": "ヤマハ", "roof": False},
     "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
-    "名古屋": {"lat": 35.084, "lon": 137.170, "name": "豊田ス", "roof": False},
 }
 
 # ダービー・注目カード
 DERBIES = [
-    ({"清水", "磐田"}, "🔥 静岡ダービー"),
-    ({"G大阪", "C大阪"}, "🔥 大阪ダービー"),
-    ({"横浜FM", "川崎F"}, "🔥 神奈川ダービー"),
-    ({"浦和", "FC東京"}, "🔥 首都圏バトル"),
+    ({"藤枝", "清水"}, "🔥 静岡対決"),
+    ({"藤枝", "磐田"}, "🔥 静岡対決"),
+    ({"柏", "G大阪"}, "🔥 ナショナルダービー"),
 ]
 
 TOP_SCORERS = {
-    "広島": "加藤 陸次樹",
-    "清水": "北川 航也",
-    "磐田": "ジャーメイン 良",
+    "町田": "藤尾 翔太",
+    "柏": "マテウス・サヴィオ",
+    "藤枝": "矢村 健",
 }
 
-FATIGUE_TEAMS = {"広島", "清水", "福岡"}
+FATIGUE_TEAMS = {"G大阪", "富山", "山形"}
 SUSPENDED_PLAYERS = {}
 LINEUP_ALERTS = {}
 
@@ -169,14 +165,14 @@ def get_team_info(name):
     for k, v in team_dict.items():
         if name in k or k in name:
             return v
-    # カップ戦・混在用の目安
+    # J2・混在カードの目安
     defaults = {
-        "広島": {"rank": 2, "pts": 55}, "神戸": {"rank": 3, "pts": 52}, "町田": {"rank": 4, "pts": 50},
-        "G大阪": {"rank": 5, "pts": 48}, "清水": {"rank": 6, "pts": 45}, "福岡": {"rank": 8, "pts": 40},
-        "千葉": {"rank": 11, "pts": 36}, "磐田": {"rank": 14, "pts": 32}, "岡山": {"rank": 12, "pts": 34},
-        "札幌": {"rank": 18, "pts": 22}, "栃木C": {"rank": 19, "pts": 20}, "金沢": {"rank": 19, "pts": 20}, "FC大阪": {"rank": 19, "pts": 20}
+        "町田": {"rank": 3, "pts": 55}, "G大阪": {"rank": 5, "pts": 49}, "柏": {"rank": 10, "pts": 39},
+        "京都": {"rank": 14, "pts": 34}, "湘南": {"rank": 16, "pts": 30},
+        "富山": {"rank": 4, "pts": 45}, "山形": {"rank": 9, "pts": 38}, "甲府": {"rank": 11, "pts": 35},
+        "藤枝": {"rank": 13, "pts": 33}, "大分": {"rank": 15, "pts": 30}
     }
-    return defaults.get(name, {"rank": 12, "pts": 30})
+    return defaults.get(name, {"rank": 12, "pts": 32})
 
 # --- 勝率・波乱度の総合計算 ---
 matches = []

@@ -9,14 +9,25 @@ import pandas as pd
 st.set_page_config(page_title="mini toto高配当特化ナビゲーター", page_icon="⚽", layout="wide")
 
 st.title("⚽ mini toto 高配当特化（36口包囲網）ナビゲーター")
-st.caption("「安めは外れてもいい、数万円の高配当回を全勝で獲る」――トリプル2個＋ダブル2個＋厳選シングル1個の集中モデル。")
+st.caption("「波乱の偶数回」を完全制覇――トリプル2個＋ダブル2個＋厳選シングル1個で数万円の高配当を一撃で掴む実戦モデル。")
 
 # --- 開催回スケジュールマスター ---
 JST = ZoneInfo("Asia/Tokyo")
 now = datetime.datetime.now(JST)
 
 ROUNDS_SCHEDULE = {
-    "第1659回 (10/7 水 開催)": {
+    "第1660回 (10/10 土 開催)": {
+        "deadline": datetime.datetime(2026, 10, 10, 13, 50, 0, tzinfo=JST),
+        "round_num": 1660,
+        "matches": [
+            {"no": 1, "home": "C大阪", "away": "横浜FM"},
+            {"no": 2, "home": "FC東京", "away": "浦和"},
+            {"no": 3, "home": "福岡", "away": "岡山"},
+            {"no": 4, "home": "千葉", "away": "長崎"},
+            {"no": 5, "home": "水戸", "away": "清水"},
+        ]
+    },
+    "第1659回 (10/7 水 開催・終了)": {
         "deadline": datetime.datetime(2026, 10, 7, 18, 20, 0, tzinfo=JST),
         "round_num": 1659,
         "matches": [
@@ -25,17 +36,6 @@ ROUNDS_SCHEDULE = {
             {"no": 3, "home": "清水", "away": "長崎"},
             {"no": 4, "home": "鳥取", "away": "東京V"},
             {"no": 5, "home": "川崎F", "away": "宮崎"},
-        ]
-    },
-    "第1660回 (10/10 土 開催)": {
-        "deadline": datetime.datetime(2026, 10, 10, 13, 50, 0, tzinfo=JST),
-        "round_num": 1660,
-        "matches": [
-            {"no": 1, "home": "浦和", "away": "鹿島"},
-            {"no": 2, "home": "町田", "away": "神戸"},
-            {"no": 3, "home": "G大阪", "away": "名古屋"},
-            {"no": 4, "home": "横浜FM", "away": "柏"},
-            {"no": 5, "home": "FC東京", "away": "清水"},
         ]
     }
 }
@@ -105,34 +105,32 @@ total_cost = combinations * 100
 st.sidebar.metric(label="合計購入口数", value=f"{combinations:,} 口")
 st.sidebar.metric(label="合計投資金額", value=f"{total_cost:,} 円")
 
-# --- スタジアム気象データベース ---
+# --- スタジアム気象データベース（第1660回 会場対応） ---
 STADIUM_DB = {
-    "広島": {"lat": 37.011, "lon": 140.865, "name": "ハワスタ", "roof": False},
-    "岡山": {"lat": 35.578, "lon": 140.123, "name": "フクアリ", "roof": False},
-    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
-    "鳥取": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
-    "川崎F": {"lat": 32.062, "lon": 131.472, "name": "いちご", "roof": False},
-    "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
-    "町田": {"lat": 35.592, "lon": 139.438, "name": "Gスタ", "roof": False},
-    "G大阪": {"lat": 34.809, "lon": 135.543, "name": "パナスタ", "roof": False},
-    "横浜FM": {"lat": 35.510, "lon": 139.606, "name": "日産ス", "roof": False},
+    "C大阪": {"lat": 34.618, "lon": 135.518, "name": "ヨドコウ", "roof": False},
     "FC東京": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
+    "福岡": {"lat": 33.585, "lon": 130.460, "name": "ベススタ", "roof": False},
+    "千葉": {"lat": 35.578, "lon": 140.123, "name": "フクアリ", "roof": False},
+    "水戸": {"lat": 36.345, "lon": 140.412, "name": "Ksスタ", "roof": False},
+    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
+    "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
 }
 
+# ダービー・注目カード
 DERBIES = [
-    ({"清水", "長崎"}, "🔥 昇格ライバル激戦"),
-    ({"浦和", "鹿島"}, "🔥 伝統の赤黒クラシコ"),
-    ({"町田", "神戸"}, "🔥 首位頂上決戦"),
+    ({"FC東京", "浦和"}, "🔥 伝統の激突・赤青クラシコ"),
+    ({"C大阪", "横浜FM"}, "🔥 伝統の強豪対決"),
+    ({"千葉", "長崎"}, "🔥 J2昇格争い頂上決戦"),
 ]
 
 TOP_SCORERS = {
-    "広島": "加藤 陸次樹",
+    "C大阪": "レオ セアラ",
+    "横浜FM": "アンデルソン ロペス",
     "清水": "北川 航也",
-    "長崎": "マテウス・ジェズス",
-    "川崎F": "山田 新",
+    "長崎": "マテウス ジェズス",
 }
 
-FATIGUE_TEAMS = {"清水", "長崎", "川崎F", "広島"}
+FATIGUE_TEAMS = {"横浜FM", "浦和", "清水", "長崎"}
 SUSPENDED_PLAYERS = {}
 LINEUP_ALERTS = {}
 
@@ -189,13 +187,14 @@ def get_team_info(name):
     for k, v in team_dict.items():
         if name in k or k in name:
             return v
-    # カップ戦・混在チームの補正
+    # J2等の目安順位
     defaults = {
-        "広島": {"rank": 1, "pts": 60}, "川崎F": {"rank": 4, "pts": 52}, "東京V": {"rank": 7, "pts": 45},
-        "清水": {"rank": 5, "pts": 50}, "長崎": {"rank": 6, "pts": 48}, "千葉": {"rank": 10, "pts": 40},
-        "岡山": {"rank": 11, "pts": 38}, "いわき": {"rank": 15, "pts": 30}, "宮崎": {"rank": 18, "pts": 20}, "鳥取": {"rank": 19, "pts": 18}
+        "C大阪": {"rank": 8, "pts": 45}, "横浜FM": {"rank": 6, "pts": 48}, "FC東京": {"rank": 7, "pts": 46},
+        "浦和": {"rank": 9, "pts": 43}, "福岡": {"rank": 10, "pts": 40},
+        "清水": {"rank": 1, "pts": 65}, "長崎": {"rank": 3, "pts": 58}, "千葉": {"rank": 5, "pts": 52},
+        "岡山": {"rank": 6, "pts": 50}, "水戸": {"rank": 15, "pts": 32}
     }
-    return defaults.get(name, {"rank": 12, "pts": 32})
+    return defaults.get(name, {"rank": 10, "pts": 40})
 
 # --- 勝率・波乱度の総合計算 ---
 matches = []
@@ -241,7 +240,7 @@ for rm in raw_matches:
     a_p = round(away_score / total, 2)
     d_p = round(1.0 - (h_p + a_p), 2)
 
-    # 不確実性スコア（小さいほど荒れる難関試合）
+    # 不確実性スコア（小さいほど大荒れの危険試合）
     p_first, p_second, p_third = sorted([h_p, d_p, a_p], reverse=True)
     uncertainty = p_first - p_second
     if derby_title:
@@ -264,7 +263,7 @@ for rm in raw_matches:
         "stadium": weather_info["stadium"],
         "derby": derby_title,
         "uncertainty": uncertainty,
-        "reliability": p_first  # 本命信頼度
+        "reliability": p_first
     })
 
 # 波乱順（不確実性が高い順）にソートしてトリプルを割り当て
@@ -275,13 +274,12 @@ triple_nos = [m["no"] for m in sorted_by_chaos[:num_triple]]
 remaining_matches = [m for m in sorted_by_chaos[num_triple:]]
 sorted_by_reliability = sorted(remaining_matches, key=lambda x: x["reliability"], reverse=True)
 
-# シングル枠数（5 - トリプル数 - ダブル数）
 num_single = max(5 - num_triple - num_double, 0)
 single_nos = [m["no"] for m in sorted_by_reliability[:num_single]]
 double_nos = [m["no"] for m in sorted_by_reliability[num_single:]]
 
-# --- 画面上部：高配当チャンスバナー ---
-st.error(f"### 🔥 第{round_num}回：高配当ハンター包囲網（36口・3,600円）稼働中\n**💡 作戦**: 難関激戦の2試合を【トリプル全抑え】で完全封殺し、自信のある1試合だけを【シングル】に厳選。あの1敗を潰して高配当を全勝で獲りにいきます！")
+# --- 画面上部：波乱警報バナー ---
+st.error(f"### 🔥 第{round_num}回：大波乱警報発令中（36口包囲網で高配当直撃を狙う）\n**💡 作戦**: 交互にやってくる『波乱の偶数回』です！実力伯仲の激戦2試合を【トリプル全抑え】で完全封殺し、自信のある1試合だけを【シングル】に厳選。今度こそ数万円の高配当を全勝で仕留めます！")
 
 st.subheader(f"📋 【{selected_round_key}】 mini toto-A組 推奨買い目")
 

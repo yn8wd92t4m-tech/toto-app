@@ -1,66 +1,304 @@
 import io
 import datetime
 from zoneinfo import ZoneInfo
+import math
 import requests
 import streamlit as st
 import pandas as pd
 
 # ページの基本設定
-st.set_page_config(page_title="mini toto高配当特化ナビゲーター", page_icon="⚽", layout="wide")
+st.set_page_config(page_title="toto / mini toto 総合分析ナビゲーター", page_icon="⚽", layout="wide")
 
-st.title("⚽ mini toto 高配当特化（36口包囲網）ナビゲーター")
-st.caption("「波乱の偶数回」を完全制覇――トリプル2個＋ダブル2個＋厳選シングル1個で数万円の高配当を一撃で掴む実戦モデル。")
+st.title("⚽ サッカーくじ toto / mini toto 統計分析ナビゲーター")
+st.caption("J1・J2リーグ統計ベースライン、動的引き分けモデリング、およびバックテスト検証を統合した実戦分析システム。")
 
-# --- 開催回スケジュールマスター ---
+# --- 日本時間タイムゾーン ---
 JST = ZoneInfo("Asia/Tokyo")
 now = datetime.datetime.now(JST)
 
+# --- J1・J2全スタジアム網羅データベース ---
+STADIUM_DB = {
+    # J1
+    "神戸": {"lat": 34.656, "lon": 135.169, "name": "ノエスタ", "roof": True},
+    "札幌": {"lat": 43.015, "lon": 141.409, "name": "プレド", "roof": True},
+    "鹿島": {"lat": 35.991, "lon": 140.640, "name": "カシマ", "roof": False},
+    "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
+    "柏": {"lat": 35.848, "lon": 139.975, "name": "三協F柏", "roof": False},
+    "FC東京": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
+    "東京V": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
+    "町田": {"lat": 35.592, "lon": 139.438, "name": "Gスタ", "roof": False},
+    "川崎F": {"lat": 35.586, "lon": 139.653, "name": "U等々力", "roof": False},
+    "横浜FM": {"lat": 35.510, "lon": 139.606, "name": "日産ス", "roof": False},
+    "湘南": {"lat": 35.344, "lon": 139.349, "name": "レモンS", "roof": False},
+    "新潟": {"lat": 37.882, "lon": 139.059, "name": "デンカS", "roof": False},
+    "磐田": {"lat": 34.724, "lon": 137.876, "name": "ヤマハ", "roof": False},
+    "名古屋": {"lat": 35.084, "lon": 137.170, "name": "豊田ス", "roof": False},
+    "京都": {"lat": 35.000, "lon": 135.581, "name": "サンガS", "roof": False},
+    "G大阪": {"lat": 34.809, "lon": 135.543, "name": "パナスタ", "roof": False},
+    "C大阪": {"lat": 34.618, "lon": 135.518, "name": "ヨドコウ", "roof": False},
+    "広島": {"lat": 34.398, "lon": 132.453, "name": "Eピース", "roof": False},
+    "福岡": {"lat": 33.585, "lon": 130.460, "name": "ベススタ", "roof": False},
+    "鳥栖": {"lat": 33.372, "lon": 130.520, "name": "駅スタ", "roof": False},
+    # J2
+    "仙台": {"lat": 38.319, "lon": 140.882, "name": "ユアスタ", "roof": False},
+    "秋田": {"lat": 39.721, "lon": 140.103, "name": "ソユスタ", "roof": False},
+    "山形": {"lat": 38.337, "lon": 140.378, "name": "NDスタ", "roof": False},
+    "いわき": {"lat": 37.011, "lon": 140.865, "name": "ハワスタ", "roof": False},
+    "水戸": {"lat": 36.345, "lon": 140.412, "name": "Ksスタ", "roof": False},
+    "栃木SC": {"lat": 36.568, "lon": 139.878, "name": "カンセキ", "roof": False},
+    "群馬": {"lat": 36.413, "lon": 139.052, "name": "正田醤油", "roof": False},
+    "千葉": {"lat": 35.578, "lon": 140.123, "name": "フクアリ", "roof": False},
+    "横浜FC": {"lat": 35.470, "lon": 139.603, "name": "ニッパツ", "roof": False},
+    "甲府": {"lat": 35.622, "lon": 138.590, "name": "JITス", "roof": False},
+    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
+    "藤枝": {"lat": 34.872, "lon": 138.257, "name": "藤枝サ", "roof": False},
+    "岡山": {"lat": 34.681, "lon": 133.919, "name": "Cスタ", "roof": False},
+    "山口": {"lat": 34.150, "lon": 131.439, "name": "みらスタ", "roof": False},
+    "徳島": {"lat": 34.168, "lon": 134.618, "name": "鳴門大塚", "roof": False},
+    "愛媛": {"lat": 33.768, "lon": 132.797, "name": "ニンスタ", "roof": False},
+    "長崎": {"lat": 32.837, "lon": 129.980, "name": "ピースタ", "roof": False},
+    "熊本": {"lat": 32.837, "lon": 130.800, "name": "えがおS", "roof": False},
+    "大分": {"lat": 33.200, "lon": 131.657, "name": "レゾド", "roof": True},
+    "鹿児島": {"lat": 31.565, "lon": 130.557, "name": "白波スタ", "roof": False},
+}
+
+# ダービーマッチ（接戦化ファクター）
+DERBIES = [
+    ({"清水", "磐田"}, "🔥 静岡ダービー"),
+    ({"G大阪", "C大阪"}, "🔥 大阪ダービー"),
+    ({"横浜FM", "川崎F"}, "🔥 神奈川ダービー"),
+    ({"横浜FM", "横浜FC"}, "🔥 横浜ダービー"),
+    ({"FC東京", "東京V"}, "🔥 東京ダービー"),
+    ({"浦和", "大宮"}, "🔥 さいたまダービー"),
+    ({"山形", "仙台"}, "🔥 みちのくダービー"),
+    ({"清水", "藤枝"}, "🔥 静岡対決"),
+    ({"磐田", "藤枝"}, "🔥 静岡対決"),
+]
+
+# --- 開催回スケジュールマスター（全13試合完備） ---
 ROUNDS_SCHEDULE = {
     "第1660回 (10/10 土 開催)": {
         "deadline": datetime.datetime(2026, 10, 10, 13, 50, 0, tzinfo=JST),
         "round_num": 1660,
         "matches": [
-            {"no": 1, "home": "C大阪", "away": "横浜FM"},
-            {"no": 2, "home": "FC東京", "away": "浦和"},
-            {"no": 3, "home": "福岡", "away": "岡山"},
-            {"no": 4, "home": "千葉", "away": "長崎"},
-            {"no": 5, "home": "水戸", "away": "清水"},
+            # A組 (1-5)
+            {"no": 1, "home": "C大阪", "away": "横浜FM", "date": "2026-10-10"},
+            {"no": 2, "home": "FC東京", "away": "浦和", "date": "2026-10-10"},
+            {"no": 3, "home": "福岡", "away": "岡山", "date": "2026-10-10"},
+            {"no": 4, "home": "千葉", "away": "長崎", "date": "2026-10-10"},
+            {"no": 5, "home": "水戸", "away": "清水", "date": "2026-10-10"},
+            # B組 (6-10)
+            {"no": 6, "home": "鹿島", "away": "神戸", "date": "2026-10-10"},
+            {"no": 7, "home": "名古屋", "away": "広島", "date": "2026-10-10"},
+            {"no": 8, "home": "川崎F", "away": "町田", "date": "2026-10-10"},
+            {"no": 9, "home": "湘南", "away": "京都", "date": "2026-10-10"},
+            {"no": 10, "home": "新潟", "away": "鳥栖", "date": "2026-10-10"},
+            # 通常toto (11-13)
+            {"no": 11, "home": "山形", "away": "甲府", "date": "2026-10-10"},
+            {"no": 12, "home": "横浜FC", "away": "藤枝", "date": "2026-10-10"},
+            {"no": 13, "home": "徳島", "away": "大分", "date": "2026-10-10"},
         ]
     },
     "第1659回 (10/7 水 開催・終了)": {
         "deadline": datetime.datetime(2026, 10, 7, 18, 20, 0, tzinfo=JST),
         "round_num": 1659,
         "matches": [
-            {"no": 1, "home": "広島", "away": "いわき"},
-            {"no": 2, "home": "岡山", "away": "千葉"},
-            {"no": 3, "home": "清水", "away": "長崎"},
-            {"no": 4, "home": "鳥取", "away": "東京V"},
-            {"no": 5, "home": "川崎F", "away": "宮崎"},
+            {"no": 1, "home": "広島", "away": "いわき", "date": "2026-10-07"},
+            {"no": 2, "home": "岡山", "away": "千葉", "date": "2026-10-07"},
+            {"no": 3, "home": "清水", "away": "長崎", "date": "2026-10-07"},
+            {"no": 4, "home": "鳥取", "away": "東京V", "date": "2026-10-07"},
+            {"no": 5, "home": "川崎F", "away": "宮崎", "date": "2026-10-07"},
         ]
     }
 }
 
-# --- サイドバー ---
-st.sidebar.header("⚙️ 開催回・戦略設定")
+# --- 開催日連動のOpen-Meteo気象API ---
+@st.cache_data(ttl=1800)
+def fetch_weather_for_date(home_team, match_date_str):
+    info = STADIUM_DB.get(home_team, {"lat": 35.68, "lon": 139.76, "name": "会場", "roof": False})
+    if info.get("roof", False):
+        return {"desc": "🏟️ 屋根あり (天候影響なし)", "is_rain": False, "roof": True, "stadium": info["name"]}
+    
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={info['lat']}&longitude={info['lon']}&daily=precipitation_probability_max,weather_code&timezone=Asia%2FTokyo"
+    try:
+        res = requests.get(url, timeout=5).json()
+        daily = res.get("daily", {})
+        time_list = daily.get("time", [])
+        prob_list = daily.get("precipitation_probability_max", [])
+        
+        target_prob = 20
+        if match_date_str in time_list:
+            idx = time_list.index(match_date_str)
+            if idx < len(prob_list):
+                target_prob = prob_list[idx]
+        elif prob_list:
+            target_prob = prob_list[0]
+            
+        is_rain = (target_prob >= 50) and (not info["roof"])
+        weather_icon = "☔ 雨" if target_prob >= 50 else ("☁️ 曇" if target_prob >= 30 else "☀️ 晴")
+        weather_desc = f"{weather_icon} ({target_prob}%)"
+        return {"desc": weather_desc, "is_rain": is_rain, "roof": info["roof"], "stadium": info["name"]}
+    except Exception:
+        return {"desc": "☀️ 晴れ (平年値)", "is_rain": False, "roof": info.get("roof", False), "stadium": info.get("name", "会場")}
 
-# 更新ボタン
+# --- J1・J2順位表の自動取得 ---
+@st.cache_data(ttl=3600)
+def fetch_all_standings():
+    headers = {"User-Agent": "Mozilla/5.0"}
+    res_dict = {}
+    
+    # J1取得
+    try:
+        u1 = "https://soccer.yahoo.co.jp/jleague/category/j1/standings"
+        r1 = requests.get(u1, headers=headers, timeout=8)
+        t1 = pd.read_html(io.StringIO(r1.text))
+        if t1:
+            df1 = t1[0]
+            for _, row in df1.iterrows():
+                name = str(row.get("チーム名", "")).strip()
+                if name:
+                    res_dict[name] = {
+                        "category": "J1",
+                        "rank": int(row.get("順位", 10)),
+                        "pts": int(row.get("勝点", 10)),
+                        "matches": int(row.get("試合", 25)),
+                        "diff": int(row.get("得失点差", 0))
+                    }
+    except Exception:
+        pass
+        
+    # J2取得
+    try:
+        u2 = "https://soccer.yahoo.co.jp/jleague/category/j2/standings"
+        r2 = requests.get(u2, headers=headers, timeout=8)
+        t2 = pd.read_html(io.StringIO(r2.text))
+        if t2:
+            df2 = t2[0]
+            for _, row in df2.iterrows():
+                name = str(row.get("チーム名", "")).strip()
+                if name:
+                    res_dict[name] = {
+                        "category": "J2",
+                        "rank": int(row.get("順位", 10)),
+                        "pts": int(row.get("勝点", 10)),
+                        "matches": int(row.get("試合", 25)),
+                        "diff": int(row.get("得失点差", 0))
+                    }
+    except Exception:
+        pass
+        
+    return res_dict
+
+standings_data = fetch_all_standings()
+
+# チーム名エイリアス辞書
+TEAM_ALIASES = {
+    "C大阪": ["セレッソ大阪", "C大阪"], "G大阪": ["ガンバ大阪", "G大阪"],
+    "横浜FM": ["横浜F・マリノス", "横浜FM"], "横浜FC": ["横浜FC"],
+    "FC東京": ["FC東京"], "東京V": ["東京ヴェルディ", "東京V"],
+    "川崎F": ["川崎フロンターレ", "川崎F"], "浦和": ["浦和レッズ", "浦和"],
+    "鹿島": ["鹿島アントラーズ", "鹿島"], "柏": ["柏レイソル", "柏"],
+    "町田": ["FC町田ゼルビア", "町田"], "湘南": ["湘南ベルマーレ", "湘南"],
+    "新潟": ["アルビレックス新潟", "新潟"], "磐田": ["ジュビロ磐田", "磐田"],
+    "名古屋": ["名古屋グランパス", "名古屋"], "京都": ["京都サンガF.C.", "京都"],
+    "神戸": ["ヴィッセル神戸", "神戸"], "広島": ["サンフレッチェ広島", "広島"],
+    "福岡": ["アビスパ福岡", "福岡"], "鳥栖": ["サガン鳥栖", "鳥栖"],
+    "清水": ["清水エスパルス", "清水"], "千葉": ["ジェフユナイテッド千葉", "千葉"],
+    "長崎": ["V・ファーレン長崎", "長崎"], "水戸": ["水戸ホーリーホック", "水戸"],
+    "岡山": ["ファジアーノ岡山", "岡山"], "山形": ["モンテディオ山形", "山形"],
+    "甲府": ["ヴァンフォーレ甲府", "甲府"], "藤枝": ["藤枝MYFC", "藤枝"],
+    "徳島": ["徳島ヴォルティス", "徳島"], "大分": ["大分トリニータ", "大分"],
+}
+
+def get_team_metrics(short_name):
+    aliases = TEAM_ALIASES.get(short_name, [short_name])
+    for cand in aliases:
+        for scraped_name, metrics in standings_data.items():
+            if cand == scraped_name or cand in scraped_name:
+                return metrics
+                
+    FALLBACK_DB = {
+        "広島": {"category": "J1", "rank": 1, "pts": 62, "matches": 32, "diff": 28},
+        "神戸": {"category": "J1", "rank": 2, "pts": 61, "matches": 32, "diff": 24},
+        "町田": {"category": "J1", "rank": 3, "pts": 59, "matches": 32, "diff": 21},
+        "G大阪": {"category": "J1", "rank": 5, "pts": 53, "matches": 32, "diff": 12},
+        "横浜FM": {"category": "J1", "rank": 6, "pts": 50, "matches": 32, "diff": 8},
+        "FC東京": {"category": "J1", "rank": 7, "pts": 48, "matches": 32, "diff": 4},
+        "C大阪": {"category": "J1", "rank": 8, "pts": 47, "matches": 32, "diff": 3},
+        "浦和": {"category": "J1", "rank": 9, "pts": 45, "matches": 32, "diff": 2},
+        "福岡": {"category": "J1", "rank": 10, "pts": 43, "matches": 32, "diff": -1},
+        "清水": {"category": "J2", "rank": 1, "pts": 71, "matches": 32, "diff": 30},
+        "横浜FC": {"category": "J2", "rank": 2, "pts": 69, "matches": 32, "diff": 28},
+        "長崎": {"category": "J2", "rank": 3, "pts": 62, "matches": 32, "diff": 25},
+        "千葉": {"category": "J2", "rank": 4, "pts": 55, "matches": 32, "diff": 18},
+        "岡山": {"category": "J2", "rank": 5, "pts": 53, "matches": 32, "diff": 15},
+        "山形": {"category": "J2", "rank": 8, "pts": 48, "matches": 32, "diff": 6},
+        "水戸": {"category": "J2", "rank": 14, "pts": 38, "matches": 32, "diff": -8},
+    }
+    return FALLBACK_DB.get(short_name, {"category": "J1", "rank": 10, "pts": 40, "matches": 30, "diff": 0})
+
+# --- 統計的勝率推定エンジン ---
+def estimate_match_probs(h_metrics, a_metrics, is_rain=False, is_derby=False,
+                         home_adv=0.25, ppg_weight=0.65, draw_base=0.26):
+    """
+    Jリーグ実績ベースライン＋1試合あたり勝点(PPG)差によるロジスティック勝率モデル
+    """
+    h_ppg = h_metrics["pts"] / max(h_metrics["matches"], 1)
+    a_ppg = a_metrics["pts"] / max(a_metrics["matches"], 1)
+    
+    cat_offset = 0.0
+    if h_metrics["category"] == "J1" and a_metrics["category"] == "J2":
+        cat_offset = 0.50
+    elif h_metrics["category"] == "J2" and a_metrics["category"] == "J1":
+        cat_offset = -0.50
+        
+    ppg_diff = (h_ppg - a_ppg) + cat_offset
+    derby_factor = 0.6 if is_derby else 1.0
+    
+    delta = ppg_diff * ppg_weight * derby_factor
+    raw_home = math.exp(delta + home_adv)
+    raw_away = math.exp(-delta)
+    
+    closeness = math.exp(-abs(delta) * 1.8)
+    draw_prob = draw_base + (closeness * 0.05) + (0.05 if is_rain else 0.0)
+    draw_prob = min(max(draw_prob, 0.18), 0.38)
+    
+    remain = 1.0 - draw_prob
+    home_prob = remain * (raw_home / (raw_home + raw_away))
+    away_prob = remain * (raw_away / (raw_home + raw_away))
+    
+    return round(home_prob, 3), round(draw_prob, 3), round(away_prob, 3)
+
+# --- サイドバー操作 ---
+st.sidebar.header("⚙️ システム設定")
+
 if st.sidebar.button("🔄 最新データを更新・再取得"):
     st.cache_data.clear()
     st.rerun()
 
 round_keys = list(ROUNDS_SCHEDULE.keys())
-
-selected_round_key = st.sidebar.selectbox(
-    "🎟️ 対象の開催回",
-    round_keys,
-    index=0,
-    key="round_select_box"
-)
-
+selected_round_key = st.sidebar.selectbox("🎟️ 対象の開催回", round_keys, index=0, key="r_selector")
 current_round_data = ROUNDS_SCHEDULE[selected_round_key]
 DEADLINE = current_round_data["deadline"]
-raw_matches = current_round_data["matches"]
+all_matches_in_round = current_round_data["matches"]
 round_num = current_round_data["round_num"]
+
+# くじ種別の選択（A組 / B組 / 通常toto）
+target_pool = st.sidebar.radio(
+    "🎫 対象くじ種別",
+    ["mini toto-A組 (第1〜5試合)", "mini toto-B組 (第6〜10試合)", "通常 toto (全13試合)"],
+    index=0
+)
+
+if "A組" in target_pool:
+    raw_matches = all_matches_in_round[:5]
+    total_slots = 5
+elif "B組" in target_pool:
+    raw_matches = all_matches_in_round[5:10]
+    total_slots = 5
+else:
+    raw_matches = all_matches_in_round[:13]
+    total_slots = len(raw_matches)
 
 # 締切カウントダウン
 remaining = DEADLINE - now
@@ -70,34 +308,40 @@ if remaining.total_seconds() > 0:
     rem_hours = (total_sec % 86400) // 3600
     rem_mins = (total_sec % 3600) // 60
     time_text = f"{rem_days}日 {rem_hours}時間 {rem_mins}分" if rem_days > 0 else f"{rem_hours}時間 {rem_mins}分"
-    st.warning(f"⏳ **第{round_num}回 mini toto 販売締切まで：あと {time_text}** （締切: {DEADLINE.strftime('%m/%d %H:%M')}）")
     st.sidebar.metric(label="⏳ 投票締切まで", value=time_text)
 else:
-    st.info(f"📢 第{round_num}回 toto の販売は終了しました。")
     st.sidebar.metric(label="⏳ 投票締切まで", value="受付終了")
 
 st.sidebar.divider()
-st.sidebar.subheader("🎯 投資配分プラン")
+st.sidebar.subheader("🎯 投資・マルチ購入配分")
 
-strategy_plan = st.sidebar.radio(
-    "マルチ配分方式",
-    [
-        "🔥 高配当包囲網 (トリプル2・ダブル2・シングル1 / 3,600円)",
-        "🛡️ バランス配分 (トリプル1・ダブル2・シングル2 / 1,200円)",
-        "🎲 カスタム指定"
-    ],
-    index=0
-)
-
-if "高配当包囲網" in strategy_plan:
-    num_triple = 2
-    num_double = 2
-elif "バランス" in strategy_plan:
-    num_triple = 1
-    num_double = 2
+if total_slots == 5:
+    strategy_plan = st.sidebar.radio(
+        "マルチ配分プラン",
+        [
+            "🔥 高配当狙い包囲網 (トリプル2・ダブル2・シングル1 / 3,600円)",
+            "⚡ スマートマルチ (トリプル1・ダブル3・シングル1 / 2,400円)",
+            "🛡️ 本命手堅い配分 (ダブル2・シングル3 / 400円)",
+            "🎲 カスタム指定"
+        ],
+        index=0
+    )
+    if "包囲網" in strategy_plan:
+        num_triple = 2
+        num_double = 2
+    elif "スマート" in strategy_plan:
+        num_triple = 1
+        num_double = 3
+    elif "手堅い" in strategy_plan:
+        num_triple = 0
+        num_double = 2
+    else:
+        num_triple = st.sidebar.slider("トリプル数", 0, 3, 1)
+        num_double = st.sidebar.slider("ダブル数", 0, 4, 2)
 else:
-    num_triple = st.sidebar.slider("トリプル数", 0, 3, 2)
-    num_double = st.sidebar.slider("ダブル数", 0, 4, 2)
+    st.sidebar.caption("通常toto（13試合）用マルチ設定")
+    num_double = st.sidebar.slider("ダブル数", 0, 8, 4)
+    num_triple = st.sidebar.slider("トリプル数", 0, 3, 1)
 
 combinations = (3 ** num_triple) * (2 ** num_double)
 total_cost = combinations * 100
@@ -105,268 +349,248 @@ total_cost = combinations * 100
 st.sidebar.metric(label="合計購入口数", value=f"{combinations:,} 口")
 st.sidebar.metric(label="合計投資金額", value=f"{total_cost:,} 円")
 
-# --- スタジアム気象データベース（第1660回 会場対応） ---
-STADIUM_DB = {
-    "C大阪": {"lat": 34.618, "lon": 135.518, "name": "ヨドコウ", "roof": False},
-    "FC東京": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
-    "福岡": {"lat": 33.585, "lon": 130.460, "name": "ベススタ", "roof": False},
-    "千葉": {"lat": 35.578, "lon": 140.123, "name": "フクアリ", "roof": False},
-    "水戸": {"lat": 36.345, "lon": 140.412, "name": "Ksスタ", "roof": False},
-    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
-    "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
-}
+# 全通り数と理論上の的中カバー率
+total_combinations_pool = (3 ** total_slots)
+coverage_rate = round((combinations / total_combinations_pool) * 100, 2)
+st.sidebar.caption(f"全{total_combinations_pool:,}通り中 {combinations:,}通りをカバー（カバレッジ: {coverage_rate}%）")
 
-# ダービー・注目カード
-DERBIES = [
-    ({"FC東京", "浦和"}, "🔥 伝統の激突・赤青クラシコ"),
-    ({"C大阪", "横浜FM"}, "🔥 伝統の強豪対決"),
-    ({"千葉", "長崎"}, "🔥 J2昇格争い頂上決戦"),
-]
+# --- タブ構成 ---
+tab1, tab2 = st.tabs(["🎯 最新予想・分析マークシート", "📈 バックテスト＆係数検証シミュレーター"])
 
-TOP_SCORERS = {
-    "C大阪": "レオ セアラ",
-    "横浜FM": "アンデルソン ロペス",
-    "清水": "北川 航也",
-    "長崎": "マテウス ジェズス",
-}
-
-FATIGUE_TEAMS = {"横浜FM", "浦和", "清水", "長崎"}
-SUSPENDED_PLAYERS = {}
-LINEUP_ALERTS = {}
-
-# --- 気象API取得 ---
-@st.cache_data(ttl=1800)
-def fetch_weather(home_team):
-    info = STADIUM_DB.get(home_team, {"lat": 35.68, "lon": 139.76, "name": "会場", "roof": False})
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={info['lat']}&longitude={info['lon']}&daily=precipitation_probability_max,weather_code&timezone=Asia%2FTokyo"
-    try:
-        res = requests.get(url, timeout=5).json()
-        daily = res.get("daily", {})
-        prob_list = daily.get("precipitation_probability_max", [])
-        prob = prob_list[0] if prob_list else 20
-        is_rain = (prob >= 50) and (not info["roof"])
-        weather_icon = "☔ 雨" if prob >= 50 else ("☁️ 曇" if prob >= 30 else "☀️ 晴")
-        weather_desc = f"{weather_icon} ({prob}%) 🏟️ 屋根あり" if info["roof"] else f"{weather_icon} ({prob}%)"
-        return {"desc": weather_desc, "is_rain": is_rain, "roof": info["roof"], "stadium": info["name"]}
-    except Exception:
-        return {"desc": "☀️ 晴れ (推定)", "is_rain": False, "roof": info.get("roof", False), "stadium": info.get("name", "会場")}
-
-# --- 順位表自動取得 ---
-@st.cache_data(ttl=3600)
-def fetch_jleague_standings():
-    url = "https://soccer.yahoo.co.jp/jleague/category/j1/standings"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        tables = pd.read_html(io.StringIO(res.text))
-        if tables:
-            return tables[0]
-    except Exception:
-        pass
-    return None
-
-df_standings = fetch_jleague_standings()
-team_dict = {}
-if df_standings is not None:
-    for _, row in df_standings.iterrows():
-        t_name = str(row.get("チーム名", "")).strip()
-        r_val = row.get("順位", 10)
-        p_val = row.get("勝点", 10)
-        try:
-            r_int = int(r_val)
-        except:
-            r_int = 10
-        try:
-            p_int = int(p_val)
-        except:
-            p_int = 10
-        if t_name:
-            team_dict[t_name] = {"rank": r_int, "pts": p_int}
-
-def get_team_info(name):
-    for k, v in team_dict.items():
-        if name in k or k in name:
-            return v
-    # J2等の目安順位
-    defaults = {
-        "C大阪": {"rank": 8, "pts": 45}, "横浜FM": {"rank": 6, "pts": 48}, "FC東京": {"rank": 7, "pts": 46},
-        "浦和": {"rank": 9, "pts": 43}, "福岡": {"rank": 10, "pts": 40},
-        "清水": {"rank": 1, "pts": 65}, "長崎": {"rank": 3, "pts": 58}, "千葉": {"rank": 5, "pts": 52},
-        "岡山": {"rank": 6, "pts": 50}, "水戸": {"rank": 15, "pts": 32}
-    }
-    return defaults.get(name, {"rank": 10, "pts": 40})
-
-# --- 勝率・波乱度の総合計算 ---
-matches = []
-for rm in raw_matches:
-    h_name = rm["home"]
-    a_name = rm["away"]
-    h_info = get_team_info(h_name)
-    a_info = get_team_info(a_name)
-
-    derby_title = None
-    pair = {h_name, a_name}
-    for d_set, d_name in DERBIES:
-        if d_set == pair:
-            derby_title = d_name
-            break
-
-    weather_info = fetch_weather(h_name)
-    h_scorer = TOP_SCORERS.get(h_name, None)
-    a_scorer = TOP_SCORERS.get(a_name, None)
-    scorer_h_bonus = 1.5 if h_scorer else 0.0
-    scorer_a_bonus = 1.5 if a_scorer else 0.0
-
-    h_fatigue = h_name in FATIGUE_TEAMS
-    a_fatigue = a_name in FATIGUE_TEAMS
-    fatigue_h_penalty = -1.5 if h_fatigue else 0.0
-    fatigue_a_penalty = -1.5 if a_fatigue else 0.0
-
-    rank_diff = a_info["rank"] - h_info["rank"]
-    pts_diff = h_info["pts"] - a_info["pts"]
-    home_adv = 2.2
-    draw_bonus = 3.0 if weather_info["is_rain"] else 0.0
-    derby_factor = 0.5 if derby_title else 1.0
-
-    home_score = 10.0 + (rank_diff * 0.4 * derby_factor) + (pts_diff * 0.3 * derby_factor) + home_adv + scorer_h_bonus + fatigue_h_penalty
-    away_score = 10.0 - (rank_diff * 0.4 * derby_factor) - (pts_diff * 0.3 * derby_factor) + scorer_a_bonus + fatigue_a_penalty
-    draw_score = 7.5 + draw_bonus
-
-    home_score = max(home_score, 1.0)
-    away_score = max(away_score, 1.0)
-    total = home_score + away_score + draw_score
-
-    h_p = round(home_score / total, 2)
-    a_p = round(away_score / total, 2)
-    d_p = round(1.0 - (h_p + a_p), 2)
-
-    # 不確実性スコア（小さいほど大荒れの危険試合）
-    p_first, p_second, p_third = sorted([h_p, d_p, a_p], reverse=True)
-    uncertainty = p_first - p_second
-    if derby_title:
-        uncertainty -= 0.15
-    if weather_info["is_rain"]:
-        uncertainty -= 0.08
-    if h_name in FATIGUE_TEAMS or a_name in FATIGUE_TEAMS:
-        uncertainty -= 0.05
-
-    matches.append({
-        "no": rm["no"],
-        "home": h_name,
-        "away": a_name,
-        "home_rank": h_info["rank"],
-        "away_rank": a_info["rank"],
-        "home_p": h_p,
-        "draw_p": d_p,
-        "away_p": a_p,
-        "weather": weather_info["desc"],
-        "stadium": weather_info["stadium"],
-        "derby": derby_title,
-        "uncertainty": uncertainty,
-        "reliability": p_first
-    })
-
-# 波乱順（不確実性が高い順）にソートしてトリプルを割り当て
-sorted_by_chaos = sorted(matches, key=lambda x: x["uncertainty"])
-triple_nos = [m["no"] for m in sorted_by_chaos[:num_triple]]
-
-# 残り試合の中で、本命信頼度が最も高い試合をシングルに指定し、残りをダブルに
-remaining_matches = [m for m in sorted_by_chaos[num_triple:]]
-sorted_by_reliability = sorted(remaining_matches, key=lambda x: x["reliability"], reverse=True)
-
-num_single = max(5 - num_triple - num_double, 0)
-single_nos = [m["no"] for m in sorted_by_reliability[:num_single]]
-double_nos = [m["no"] for m in sorted_by_reliability[num_single:]]
-
-# --- 画面上部：波乱警報バナー ---
-st.error(f"### 🔥 第{round_num}回：大波乱警報発令中（36口包囲網で高配当直撃を狙う）\n**💡 作戦**: 交互にやってくる『波乱の偶数回』です！実力伯仲の激戦2試合を【トリプル全抑え】で完全封殺し、自信のある1試合だけを【シングル】に厳選。今度こそ数万円の高配当を全勝で仕留めます！")
-
-st.subheader(f"📋 【{selected_round_key}】 mini toto-A組 推奨買い目")
-
-results = []
-
-for m in matches:
-    choices = [
-        {"mark": "1", "prob": m["home_p"]},
-        {"mark": "0", "prob": m["draw_p"]},
-        {"mark": "2", "prob": m["away_p"]}
-    ]
-    choices = sorted(choices, key=lambda x: x["prob"], reverse=True)
-    c1, c2, c3 = choices
-
-    is_1_checked = False
-    is_0_checked = False
-    is_2_checked = False
-
-    if m["no"] in triple_nos:
-        buy_type = "🔴 トリプル (全抑え・波乱封殺)"
-        selection = "【1】 【0】 【2】"
-        is_1_checked = is_0_checked = is_2_checked = True
-    elif m["no"] in double_nos:
-        buy_type = "🟡 ダブル (2択カバー)"
-        m_a, m_b = sorted([c1["mark"], c2["mark"]])
-        selection = f"【{m_a}】 【{m_b}】"
-        if "1" in [m_a, m_b]:
-            is_1_checked = True
-        if "0" in [m_a, m_b]:
-            is_0_checked = True
-        if "2" in [m_a, m_b]:
-            is_2_checked = True
+# ==================== タブ1：最新予想 ====================
+with tab1:
+    st.subheader(f"📋 【{selected_round_key}】 {target_pool}")
+    
+    if remaining.total_seconds() > 0:
+        st.info(f"⏳ **販売締切まで：あと {time_text}** （締切: {DEADLINE.strftime('%m/%d %H:%M')}）")
     else:
-        buy_type = "⚪ 厳選シングル (鉄板1点)"
-        selection = f"【{c1['mark']}】"
-        if c1["mark"] == "1":
-            is_1_checked = True
-        elif c1["mark"] == "0":
-            is_0_checked = True
-        elif c1["mark"] == "2":
-            is_2_checked = True
+        st.warning("📢 この開催回の販売は終了しました。")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(f"**第{m['no']}試合** @ {m['stadium']}")
-        st.write(f"🏠 **{m['home']}** vs 🚩 **{m['away']}**")
-        if m["derby"]:
-            st.error(m["derby"])
-        st.caption(f"天候: {m['weather']}")
+    matches_analyzed = []
+    for rm in raw_matches:
+        h_name = rm["home"]
+        a_name = rm["away"]
+        m_date = rm.get("date", "2026-10-10")
         
-    with col2:
-        st.write(f"勝率予想: **{int(m['home_p']*100)}%** | 【0】 **{int(m['draw_p']*100)}%** | **{int(m['away_p']*100)}%**")
-        st.caption(f"配分枠: {buy_type}")
+        h_m = get_team_metrics(h_name)
+        a_m = get_team_metrics(a_name)
         
-    with col3:
-        st.info(f"買い目: **{selection}**")
+        pair = {h_name, a_name}
+        derby_label = None
+        for d_set, d_name in DERBIES:
+            if d_set == pair:
+                derby_label = d_name
+                break
+                
+        w_info = fetch_weather_for_date(h_name, m_date)
+        
+        hp, dp, ap = estimate_match_probs(h_m, a_m, is_rain=w_info["is_rain"], is_derby=(derby_label is not None))
+        
+        # 不確実性指数（1位と2位の差が小さいほど接戦・波乱）
+        p_first, p_second, p_third = sorted([hp, dp, ap], reverse=True)
+        uncertainty = p_first - p_second
+        
+        matches_analyzed.append({
+            "no": rm["no"],
+            "home": h_name, "away": a_name, "date": m_date,
+            "home_cat": h_m["category"], "away_cat": a_m["category"],
+            "home_rank": h_m["rank"], "away_rank": a_m["rank"],
+            "home_pts": h_m["pts"], "away_pts": a_m["pts"],
+            "home_p": hp, "draw_p": dp, "away_p": ap,
+            "weather": w_info["desc"], "stadium": w_info["stadium"],
+            "derby": derby_label, "uncertainty": uncertainty,
+            "top_prob": p_first
+        })
 
-    results.append({
-        "試合番号": f"第{m['no']}試合",
-        "対戦カード": f"{m['home']} vs {m['away']}",
-        "購入タイプ": buy_type,
-        "マーク": selection,
-        "is_1": is_1_checked,
-        "is_0": is_0_checked,
-        "is_2": is_2_checked,
-    })
-    st.divider()
+    # 接戦順にソートしてトリプル・ダブル・シングルを配分
+    sorted_by_chaos = sorted(matches_analyzed, key=lambda x: x["uncertainty"])
+    triple_nos = [m["no"] for m in sorted_by_chaos[:num_triple]]
 
-# --- 楽天toto 照合用マークシート ---
-st.subheader("👀 打ち間違い防止：楽天toto 照合用マークシート")
-st.caption("楽天totoの購入画面を開き、以下の【マーク】欄の通りにチェックをつけてください。")
+    remaining_pool = [m for m in sorted_by_chaos[num_triple:]]
+    sorted_by_reliability = sorted(remaining_pool, key=lambda x: x["top_prob"], reverse=True)
 
-st.link_button("🛒 楽天toto 公式購入画面を開く", "https://toto.rakuten.co.jp/")
+    num_single = max(total_slots - num_triple - num_double, 0)
+    single_nos = [m["no"] for m in sorted_by_reliability[:num_single]]
+    double_nos = [m["no"] for m in sorted_by_reliability[num_single:]]
 
-sheet_rows = []
-for r in results:
-    m1 = "🟥【 1 】" if r["is_1"] else " ( 1 ) "
-    m0 = "🟩【 0 】" if r["is_0"] else " ( 0 ) "
-    m2 = "🟦【 2 】" if r["is_2"] else " ( 2 ) "
-    sheet_rows.append({
-        "試合": r["試合番号"],
-        "対戦カード": r["対戦カード"],
-        "購入枠": r["購入タイプ"],
-        " ホーム勝ち ": m1,
-        " [0] その他(引分) ": m0,
-        " アウェイ勝ち ": m2,
-    })
+    results = []
+    for m in matches_analyzed:
+        choices = [
+            {"mark": "1", "prob": m["home_p"]},
+            {"mark": "0", "prob": m["draw_p"]},
+            {"mark": "2", "prob": m["away_p"]}
+        ]
+        choices = sorted(choices, key=lambda x: x["prob"], reverse=True)
+        c1, c2, c3 = choices
 
-df_verification = pd.DataFrame(sheet_rows)
-st.dataframe(df_verification, use_container_width=True, hide_index=True)
+        is_1 = is_0 = is_2 = False
+
+        if m["no"] in triple_nos:
+            buy_badge = "🔴 トリプル (全抑え)"
+            selection = "【1】 【0】 【2】"
+            is_1 = is_0 = is_2 = True
+        elif m["no"] in double_nos:
+            buy_badge = "🟡 ダブル (2択)"
+            m_a, m_b = sorted([c1["mark"], c2["mark"]])
+            selection = f"【{m_a}】 【{m_b}】"
+            if "1" in [m_a, m_b]:
+                is_1 = True
+            if "0" in [m_a, m_b]:
+                is_0 = True
+            if "2" in [m_a, m_b]:
+                is_2 = True
+        else:
+            buy_badge = "⚪ シングル (本命1点)"
+            selection = f"【{c1['mark']}】"
+            if c1["mark"] == "1":
+                is_1 = True
+            elif c1["mark"] == "0":
+                is_0 = True
+            elif c1["mark"] == "2":
+                is_2 = True
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**第{m['no']}試合** @ {m['stadium']} ({m['date']})")
+            st.write(f"🏠 **{m['home']}** ({m['home_cat']} {m['home_rank']}位/{m['home_pts']}pt) vs 🚩 **{m['away']}** ({m['away_cat']} {m['away_rank']}位/{m['away_pts']}pt)")
+            if m["derby"]:
+                st.error(m["derby"])
+            st.caption(f"天候: {m['weather']}")
+        with col2:
+            st.write(f"モデル勝率: **【1】{int(m['home_p']*100)}%** | **【0】{int(m['draw_p']*100)}%** | **【2】{int(m['away_p']*100)}%**")
+            st.caption(f"配分枠: {buy_badge}")
+        with col3:
+            st.info(f"買い目: **{selection}**")
+
+        results.append({
+            "試合番号": f"第{m['no']}試合",
+            "対戦カード": f"{m['home']} vs {m['away']}",
+            "配分タイプ": buy_badge,
+            "マーク": selection,
+            "is_1": is_1, "is_0": is_0, "is_2": is_2
+        })
+        st.divider()
+
+    st.subheader("👀 打ち間違い防止：楽天toto 照合用マークシート")
+    st.link_button("🛒 楽天toto 公式購入画面を開く", "https://toto.rakuten.co.jp/")
+    sheet_rows = []
+    for r in results:
+        m1 = "🟥【 1 】" if r["is_1"] else " ( 1 ) "
+        m0 = "🟩【 0 】" if r["is_0"] else " ( 0 ) "
+        m2 = "🟦【 2 】" if r["is_2"] else " ( 2 ) "
+        sheet_rows.append({
+            "試合": r["試合番号"],
+            "対戦カード": r["対戦カード"],
+            "購入枠": r["配分タイプ"],
+            " ホーム勝ち ": m1,
+            " [0] その他(引分) ": m0,
+            " アウェイ勝ち ": m2,
+        })
+    st.dataframe(pd.DataFrame(sheet_rows), use_container_width=True, hide_index=True)
+
+# ==================== タブ2：バックテスト＆係数検証 ====================
+with tab2:
+    st.subheader("📈 統計係数の最適化シミュレーター")
+    st.caption("スライダーで係数を調整し、過去の実績データ（第1653回〜第1659回）に対する的中率と回収率の変化を検証できます。")
+
+    col_p1, col_p2, col_p3 = st.columns(3)
+    with col_p1:
+        param_home_adv = st.slider("ホームアドバンテージ補正", min_value=0.05, max_value=0.50, value=0.25, step=0.05)
+    with col_p2:
+        param_ppg_weight = st.slider("戦力差 (PPG) の感度係数", min_value=0.30, max_value=1.20, value=0.65, step=0.05)
+    with col_p3:
+        param_draw_base = st.slider("引き分けの基準発生率", min_value=0.18, max_value=0.35, value=0.26, step=0.02)
+
+    # 過去データマスター（直近実績）
+    PAST_ROUNDS = [
+        {"round": 1659, "matches": [("広島", "いわき"), ("岡山", "千葉"), ("清水", "長崎"), ("鳥取", "東京V"), ("川崎F", "宮崎")], "actual": ["1", "1", "1", "2", "1"], "payout": 1910},
+        {"round": 1658, "matches": [("町田", "京都"), ("柏", "G大阪"), ("藤枝", "湘南"), ("甲府", "富山"), ("大分", "山形")], "actual": ["1", "0", "0", "1", "2"], "payout": 38400},
+        {"round": 1657, "matches": [("札幌", "岡山"), ("栃木SC", "広島"), ("磐田", "千葉"), ("金沢", "清水"), ("FC大阪", "福岡")], "actual": ["2", "2", "1", "2", "2"], "payout": 1810},
+        {"round": 1656, "matches": [("山形", "鳥栖"), ("富山", "横浜FC"), ("徳島", "栃木SC"), ("大宮", "甲府"), ("宮崎", "札幌")], "actual": ["1", "0", "0", "1", "1"], "payout": 43510},
+        {"round": 1655, "matches": [("鹿島", "甲府"), ("神戸", "鳥栖"), ("町田", "栃木SC"), ("G大阪", "徳島"), ("柏", "今治")], "actual": ["1", "1", "1", "1", "1"], "payout": 210},
+        {"round": 1654, "matches": [("福岡", "広島"), ("浦和", "東京V"), ("清水", "千葉"), ("岡山", "京都"), ("FC東京", "名古屋")], "actual": ["2", "1", "1", "0", "1"], "payout": 11890},
+        {"round": 1653, "matches": [("水戸", "川崎F"), ("清水", "福岡"), ("G大阪", "FC東京"), ("町田", "横浜FM"), ("長崎", "名古屋")], "actual": ["2", "1", "0", "2", "1"], "payout": 57810},
+    ]
+
+    total_cost_bt = 0
+    total_payout_bt = 0
+    win_count_bt = 0
+    total_hits_bt = 0
+    bt_logs = []
+
+    for item in PAST_ROUNDS:
+        r_matches = []
+        for pair in item["matches"]:
+            h_t, a_t = pair
+            hm = get_team_metrics(h_t)
+            am = get_team_metrics(a_t)
+            hp, dp, ap = estimate_match_probs(
+                hm, am, is_rain=False, is_derby=False,
+                home_adv=param_home_adv, ppg_weight=param_ppg_weight, draw_base=param_draw_base
+            )
+            p_f, p_s, p_t = sorted([hp, dp, ap], reverse=True)
+            r_matches.append({"home": h_t, "away": a_t, "hp": hp, "dp": dp, "ap": ap, "unc": p_f - p_s, "top_p": p_f})
+
+        # ソートしてトリプル・ダブルを割り当て (トリプル2・ダブル2・シングル1固定で検証)
+        s_chaos = sorted(r_matches, key=lambda x: x["unc"])
+        t_list = s_chaos[:2]
+        rem = s_chaos[2:]
+        s_rel = sorted(rem, key=lambda x: x["top_p"], reverse=True)
+        s_list = s_rel[:1]
+        d_list = s_rel[1:]
+
+        hit_cnt = 0
+        all_ok = True
+
+        for act, m_obj in zip(item["actual"], r_matches):
+            ch = sorted([("1", m_obj["hp"]), ("0", m_obj["dp"]), ("2", m_obj["ap"])], key=lambda x: x, reverse=True)
+            c_f, c_s, c_t = ch
+            if m_obj in t_list:
+                allowed = ["1", "0", "2"]
+            elif m_obj in d_list:
+                allowed = [c_f[0], c_s[0]]
+            else:
+                allowed = [c_f[0]]
+
+            if act in allowed:
+                hit_cnt += 1
+            else:
+                all_ok = False
+
+        c_cost = (3 ** 2) * (2 ** 2) * 100  # 36口 = 3,600円
+        total_cost_bt += c_cost
+        total_hits_bt += hit_cnt
+
+        if all_ok:
+            win_count_bt += 1
+            pay = item["payout"]
+            total_payout_bt += pay
+            res_str = f"🎉 1等的中！ ({pay:,}円)"
+        else:
+            pay = 0
+            res_str = f"不的中 ({hit_cnt}/5試合)"
+
+        bt_logs.append({
+            "開催回": f"第{item['round']}回",
+            "投資額": f"{c_cost:,} 円",
+            "的中試合数": f"{hit_cnt} / 5",
+            "判定": res_str,
+            "払戻金": f"{pay:,} 円",
+            "収支": f"{pay - c_cost:,} 円"
+        })
+
+    bt_roi = round((total_payout_bt / total_cost_bt) * 100, 1) if total_cost_bt > 0 else 0
+    bt_acc = round((total_hits_bt / (len(PAST_ROUNDS) * 5)) * 100, 1)
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric(label="シミュレーション通算回収率", value=f"{bt_roi} %", delta=f"{bt_roi - 100:.1f}%")
+    with m2:
+        st.metric(label="1等当せん数", value=f"{win_count_bt} 回 / {len(PAST_ROUNDS)}回中")
+    with m3:
+        st.metric(label="1試合平均的中率", value=f"{bt_acc} %")
+    with m4:
+        st.metric(label="通算純利益", value=f"{total_payout_bt - total_cost_bt:,} 円")
+
+    st.write("")
+    st.dataframe(pd.DataFrame(bt_logs), use_container_width=True, hide_index=True)

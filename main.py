@@ -18,96 +18,73 @@ now = datetime.datetime.now(JST)
 
 # --- J1・J2全スタジアム網羅データベース ---
 STADIUM_DB = {
-    # J1
-    "神戸": {"lat": 34.656, "lon": 135.169, "name": "ノエスタ", "roof": True},
-    "札幌": {"lat": 43.015, "lon": 141.409, "name": "プレド", "roof": True},
-    "鹿島": {"lat": 35.991, "lon": 140.640, "name": "カシマ", "roof": False},
+    # J1 & カップ戦会場
+    "横浜FC": {"lat": 35.470, "lon": 139.603, "name": "ニッパツ", "roof": False},
+    "横浜FM": {"lat": 35.510, "lon": 139.606, "name": "日産ス", "roof": False},
+    "名古屋": {"lat": 35.122, "lon": 136.945, "name": "ヒマスタ", "roof": False},
+    "鳥栖": {"lat": 33.372, "lon": 130.520, "name": "駅スタ", "roof": False},
+    "磐田": {"lat": 34.724, "lon": 137.876, "name": "ヤマハ", "roof": False},
+    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
     "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
+    "鹿島": {"lat": 35.991, "lon": 140.640, "name": "カシマ", "roof": False},
     "柏": {"lat": 35.848, "lon": 139.975, "name": "三協F柏", "roof": False},
     "FC東京": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
-    "東京V": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
     "町田": {"lat": 35.592, "lon": 139.438, "name": "Gスタ", "roof": False},
     "川崎F": {"lat": 35.586, "lon": 139.653, "name": "U等々力", "roof": False},
-    "横浜FM": {"lat": 35.510, "lon": 139.606, "name": "日産ス", "roof": False},
     "湘南": {"lat": 35.344, "lon": 139.349, "name": "レモンS", "roof": False},
     "新潟": {"lat": 37.882, "lon": 139.059, "name": "デンカS", "roof": False},
-    "磐田": {"lat": 34.724, "lon": 137.876, "name": "ヤマハ", "roof": False},
-    "名古屋": {"lat": 35.084, "lon": 137.170, "name": "豊田ス", "roof": False},
     "京都": {"lat": 35.000, "lon": 135.581, "name": "サンガS", "roof": False},
     "G大阪": {"lat": 34.809, "lon": 135.543, "name": "パナスタ", "roof": False},
     "C大阪": {"lat": 34.618, "lon": 135.518, "name": "ヨドコウ", "roof": False},
+    "神戸": {"lat": 34.656, "lon": 135.169, "name": "ノエスタ", "roof": True},
     "広島": {"lat": 34.398, "lon": 132.453, "name": "Eピース", "roof": False},
     "福岡": {"lat": 33.585, "lon": 130.460, "name": "ベススタ", "roof": False},
-    "鳥栖": {"lat": 33.372, "lon": 130.520, "name": "駅スタ", "roof": False},
-    # J2
-    "仙台": {"lat": 38.319, "lon": 140.882, "name": "ユアスタ", "roof": False},
-    "秋田": {"lat": 39.721, "lon": 140.103, "name": "ソユスタ", "roof": False},
-    "山形": {"lat": 38.337, "lon": 140.378, "name": "NDスタ", "roof": False},
-    "いわき": {"lat": 37.011, "lon": 140.865, "name": "ハワスタ", "roof": False},
-    "水戸": {"lat": 36.345, "lon": 140.412, "name": "Ksスタ", "roof": False},
-    "栃木SC": {"lat": 36.568, "lon": 139.878, "name": "カンセキ", "roof": False},
-    "群馬": {"lat": 36.413, "lon": 139.052, "name": "正田醤油", "roof": False},
-    "千葉": {"lat": 35.578, "lon": 140.123, "name": "フクアリ", "roof": False},
-    "横浜FC": {"lat": 35.470, "lon": 139.603, "name": "ニッパツ", "roof": False},
-    "甲府": {"lat": 35.622, "lon": 138.590, "name": "JITス", "roof": False},
-    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
-    "藤枝": {"lat": 34.872, "lon": 138.257, "name": "藤枝サ", "roof": False},
     "岡山": {"lat": 34.681, "lon": 133.919, "name": "Cスタ", "roof": False},
-    "山口": {"lat": 34.150, "lon": 131.439, "name": "みらスタ", "roof": False},
-    "徳島": {"lat": 34.168, "lon": 134.618, "name": "鳴門大塚", "roof": False},
-    "愛媛": {"lat": 33.768, "lon": 132.797, "name": "ニンスタ", "roof": False},
-    "長崎": {"lat": 32.837, "lon": 129.980, "name": "ピースタ", "roof": False},
-    "熊本": {"lat": 32.837, "lon": 130.800, "name": "えがおS", "roof": False},
-    "大分": {"lat": 33.200, "lon": 131.657, "name": "レゾド", "roof": True},
-    "鹿児島": {"lat": 31.565, "lon": 130.557, "name": "白波スタ", "roof": False},
 }
 
 # ダービーマッチ（接戦化ファクター）
 DERBIES = [
+    ({"鳥栖", "福岡"}, "🔥 九州ダービー"),
     ({"清水", "磐田"}, "🔥 静岡ダービー"),
+    ({"横浜FM", "横浜FC"}, "🔥 横浜ダービー"),
     ({"G大阪", "C大阪"}, "🔥 大阪ダービー"),
     ({"横浜FM", "川崎F"}, "🔥 神奈川ダービー"),
-    ({"横浜FM", "横浜FC"}, "🔥 横浜ダービー"),
     ({"FC東京", "東京V"}, "🔥 東京ダービー"),
-    ({"浦和", "大宮"}, "🔥 さいたまダービー"),
-    ({"山形", "仙台"}, "🔥 みちのくダービー"),
-    ({"清水", "藤枝"}, "🔥 静岡対決"),
-    ({"磐田", "藤枝"}, "🔥 静岡対決"),
 ]
 
 # --- 開催回スケジュールマスター（全13試合完備） ---
 ROUNDS_SCHEDULE = {
-    "第1660回 (10/10 土 開催)": {
-        "deadline": datetime.datetime(2026, 10, 10, 13, 50, 0, tzinfo=JST),
-        "round_num": 1660,
+    "第1661回 (10/14 水 開催)": {
+        "deadline": datetime.datetime(2026, 10, 14, 18, 20, 0, tzinfo=JST),
+        "round_num": 1661,
         "matches": [
             # A組 (1-5)
-            {"no": 1, "home": "C大阪", "away": "横浜FM", "date": "2026-10-10"},
-            {"no": 2, "home": "FC東京", "away": "浦和", "date": "2026-10-10"},
-            {"no": 3, "home": "福岡", "away": "岡山", "date": "2026-10-10"},
-            {"no": 4, "home": "千葉", "away": "長崎", "date": "2026-10-10"},
-            {"no": 5, "home": "水戸", "away": "清水", "date": "2026-10-10"},
+            {"no": 1, "home": "横浜FC", "away": "浦和", "date": "2026-10-14"},
+            {"no": 2, "home": "横浜FM", "away": "清水", "date": "2026-10-14"},
+            {"no": 3, "home": "名古屋", "away": "岡山", "date": "2026-10-14"},
+            {"no": 4, "home": "鳥栖", "away": "福岡", "date": "2026-10-14"},
+            {"no": 5, "home": "磐田", "away": "川崎F", "date": "2026-10-14"},
             # B組 (6-10)
-            {"no": 6, "home": "鹿島", "away": "神戸", "date": "2026-10-10"},
-            {"no": 7, "home": "名古屋", "away": "広島", "date": "2026-10-10"},
-            {"no": 8, "home": "川崎F", "away": "町田", "date": "2026-10-10"},
-            {"no": 9, "home": "湘南", "away": "京都", "date": "2026-10-10"},
-            {"no": 10, "home": "新潟", "away": "鳥栖", "date": "2026-10-10"},
+            {"no": 6, "home": "鹿島", "away": "G大阪", "date": "2026-10-14"},
+            {"no": 7, "home": "町田", "away": "広島", "date": "2026-10-14"},
+            {"no": 8, "home": "C大阪", "away": "神戸", "date": "2026-10-14"},
+            {"no": 9, "home": "FC東京", "away": "柏", "date": "2026-10-14"},
+            {"no": 10, "home": "湘南", "away": "新潟", "date": "2026-10-14"},
             # 通常toto (11-13)
-            {"no": 11, "home": "山形", "away": "甲府", "date": "2026-10-10"},
-            {"no": 12, "home": "横浜FC", "away": "藤枝", "date": "2026-10-10"},
-            {"no": 13, "home": "徳島", "away": "大分", "date": "2026-10-10"},
+            {"no": 11, "home": "京都", "away": "東京V", "date": "2026-10-14"},
+            {"no": 12, "home": "千葉", "away": "甲府", "date": "2026-10-14"},
+            {"no": 13, "home": "山形", "away": "長崎", "date": "2026-10-14"},
         ]
     },
-    "第1659回 (10/7 水 開催・終了)": {
-        "deadline": datetime.datetime(2026, 10, 7, 18, 20, 0, tzinfo=JST),
-        "round_num": 1659,
+    "第1662回 (10/17 土 開催)": {
+        "deadline": datetime.datetime(2026, 10, 17, 13, 50, 0, tzinfo=JST),
+        "round_num": 1662,
         "matches": [
-            {"no": 1, "home": "広島", "away": "いわき", "date": "2026-10-07"},
-            {"no": 2, "home": "岡山", "away": "千葉", "date": "2026-10-07"},
-            {"no": 3, "home": "清水", "away": "長崎", "date": "2026-10-07"},
-            {"no": 4, "home": "鳥取", "away": "東京V", "date": "2026-10-07"},
-            {"no": 5, "home": "川崎F", "away": "宮崎", "date": "2026-10-07"},
+            {"no": 1, "home": "浦和", "away": "鹿島", "date": "2026-10-17"},
+            {"no": 2, "home": "町田", "away": "神戸", "date": "2026-10-17"},
+            {"no": 3, "home": "G大阪", "away": "名古屋", "date": "2026-10-17"},
+            {"no": 4, "home": "横浜FM", "away": "柏", "date": "2026-10-17"},
+            {"no": 5, "home": "FC東京", "away": "清水", "date": "2026-10-17"},
         ]
     }
 }
@@ -147,7 +124,6 @@ def fetch_all_standings():
     headers = {"User-Agent": "Mozilla/5.0"}
     res_dict = {}
     
-    # J1取得
     try:
         u1 = "https://soccer.yahoo.co.jp/jleague/category/j1/standings"
         r1 = requests.get(u1, headers=headers, timeout=8)
@@ -167,7 +143,6 @@ def fetch_all_standings():
     except Exception:
         pass
         
-    # J2取得
     try:
         u2 = "https://soccer.yahoo.co.jp/jleague/category/j2/standings"
         r2 = requests.get(u2, headers=headers, timeout=8)
@@ -206,8 +181,7 @@ TEAM_ALIASES = {
     "清水": ["清水エスパルス", "清水"], "千葉": ["ジェフユナイテッド千葉", "千葉"],
     "長崎": ["V・ファーレン長崎", "長崎"], "水戸": ["水戸ホーリーホック", "水戸"],
     "岡山": ["ファジアーノ岡山", "岡山"], "山形": ["モンテディオ山形", "山形"],
-    "甲府": ["ヴァンフォーレ甲府", "甲府"], "藤枝": ["藤枝MYFC", "藤枝"],
-    "徳島": ["徳島ヴォルティス", "徳島"], "大分": ["大分トリニータ", "大分"],
+    "甲府": ["ヴァンフォーレ甲府", "甲府"],
 }
 
 def get_team_metrics(short_name):
@@ -227,22 +201,21 @@ def get_team_metrics(short_name):
         "C大阪": {"category": "J1", "rank": 8, "pts": 47, "matches": 32, "diff": 3},
         "浦和": {"category": "J1", "rank": 9, "pts": 45, "matches": 32, "diff": 2},
         "福岡": {"category": "J1", "rank": 10, "pts": 43, "matches": 32, "diff": -1},
+        "川崎F": {"category": "J1", "rank": 11, "pts": 42, "matches": 32, "diff": 0},
+        "名古屋": {"category": "J1", "rank": 12, "pts": 41, "matches": 32, "diff": -2},
+        "磐田": {"category": "J1", "rank": 18, "pts": 32, "matches": 32, "diff": -15},
+        "鳥栖": {"category": "J1", "rank": 20, "pts": 26, "matches": 32, "diff": -25},
         "清水": {"category": "J2", "rank": 1, "pts": 71, "matches": 32, "diff": 30},
         "横浜FC": {"category": "J2", "rank": 2, "pts": 69, "matches": 32, "diff": 28},
         "長崎": {"category": "J2", "rank": 3, "pts": 62, "matches": 32, "diff": 25},
         "千葉": {"category": "J2", "rank": 4, "pts": 55, "matches": 32, "diff": 18},
         "岡山": {"category": "J2", "rank": 5, "pts": 53, "matches": 32, "diff": 15},
-        "山形": {"category": "J2", "rank": 8, "pts": 48, "matches": 32, "diff": 6},
-        "水戸": {"category": "J2", "rank": 14, "pts": 38, "matches": 32, "diff": -8},
     }
     return FALLBACK_DB.get(short_name, {"category": "J1", "rank": 10, "pts": 40, "matches": 30, "diff": 0})
 
 # --- 統計的勝率推定エンジン ---
 def estimate_match_probs(h_metrics, a_metrics, is_rain=False, is_derby=False,
                          home_adv=0.25, ppg_weight=0.65, draw_base=0.26):
-    """
-    Jリーグ実績ベースライン＋1試合あたり勝点(PPG)差によるロジスティック勝率モデル
-    """
     h_ppg = h_metrics["pts"] / max(h_metrics["matches"], 1)
     a_ppg = a_metrics["pts"] / max(a_metrics["matches"], 1)
     
@@ -283,7 +256,7 @@ DEADLINE = current_round_data["deadline"]
 all_matches_in_round = current_round_data["matches"]
 round_num = current_round_data["round_num"]
 
-# くじ種別の選択（A組 / B組 / 通常toto）
+# くじ種別の選択
 target_pool = st.sidebar.radio(
     "🎫 対象くじ種別",
     ["mini toto-A組 (第1〜5試合)", "mini toto-B組 (第6〜10試合)", "通常 toto (全13試合)"],
@@ -336,7 +309,7 @@ if total_slots == 5:
         num_triple = 0
         num_double = 2
     else:
-        num_triple = st.sidebar.slider("トリプル数", 0, 3, 1)
+        num_triple = st.sidebar.slider("トリプル数", 0, 3, 2)
         num_double = st.sidebar.slider("ダブル数", 0, 4, 2)
 else:
     st.sidebar.caption("通常toto（13試合）用マルチ設定")
@@ -349,7 +322,6 @@ total_cost = combinations * 100
 st.sidebar.metric(label="合計購入口数", value=f"{combinations:,} 口")
 st.sidebar.metric(label="合計投資金額", value=f"{total_cost:,} 円")
 
-# 全通り数と理論上の的中カバー率
 total_combinations_pool = (3 ** total_slots)
 coverage_rate = round((combinations / total_combinations_pool) * 100, 2)
 st.sidebar.caption(f"全{total_combinations_pool:,}通り中 {combinations:,}通りをカバー（カバレッジ: {coverage_rate}%）")
@@ -370,7 +342,7 @@ with tab1:
     for rm in raw_matches:
         h_name = rm["home"]
         a_name = rm["away"]
-        m_date = rm.get("date", "2026-10-10")
+        m_date = rm.get("date", "2026-10-14")
         
         h_m = get_team_metrics(h_name)
         a_m = get_team_metrics(a_name)
@@ -386,7 +358,6 @@ with tab1:
         
         hp, dp, ap = estimate_match_probs(h_m, a_m, is_rain=w_info["is_rain"], is_derby=(derby_label is not None))
         
-        # 不確実性指数（1位と2位の差が小さいほど接戦・波乱）
         p_first, p_second, p_third = sorted([hp, dp, ap], reverse=True)
         uncertainty = p_first - p_second
         
@@ -402,7 +373,6 @@ with tab1:
             "top_prob": p_first
         })
 
-    # 接戦順にソートしてトリプル・ダブル・シングルを配分
     sorted_by_chaos = sorted(matches_analyzed, key=lambda x: x["uncertainty"])
     triple_nos = [m["no"] for m in sorted_by_chaos[:num_triple]]
 
@@ -501,7 +471,6 @@ with tab2:
     with col_p3:
         param_draw_base = st.slider("引き分けの基準発生率", min_value=0.18, max_value=0.35, value=0.26, step=0.02)
 
-    # 過去データマスター（直近実績）
     PAST_ROUNDS = [
         {"round": 1659, "matches": [("広島", "いわき"), ("岡山", "千葉"), ("清水", "長崎"), ("鳥取", "東京V"), ("川崎F", "宮崎")], "actual": ["1", "1", "1", "2", "1"], "payout": 1910},
         {"round": 1658, "matches": [("町田", "京都"), ("柏", "G大阪"), ("藤枝", "湘南"), ("甲府", "富山"), ("大分", "山形")], "actual": ["1", "0", "0", "1", "2"], "payout": 38400},
@@ -531,7 +500,6 @@ with tab2:
             p_f, p_s, p_t = sorted([hp, dp, ap], reverse=True)
             r_matches.append({"home": h_t, "away": a_t, "hp": hp, "dp": dp, "ap": ap, "unc": p_f - p_s, "top_p": p_f})
 
-        # ソートしてトリプル・ダブルを割り当て (トリプル2・ダブル2・シングル1固定で検証)
         s_chaos = sorted(r_matches, key=lambda x: x["unc"])
         t_list = s_chaos[:2]
         rem = s_chaos[2:]

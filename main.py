@@ -10,39 +10,44 @@ import pandas as pd
 # ページの基本設定
 st.set_page_config(page_title="toto / mini toto 揺らぎ・逆転法則AI", page_icon="⚽", layout="wide")
 
-st.title("⚽ toto / mini toto 非線形・揺らぎ解析ナビゲーター")
-st.caption("実データ65試合の総当たり探索から発見された「過信のマイナス補正」「A/B組シーソー保存則」「枠番バイアス」を統合した第2世代モデル。")
+st.title("⚽ toto / mini toto 非線形・揺らぎ解析ナビゲーター (v2.1)")
+st.caption("実データ78試合（6開催回）検証済：「過信のマイナス補正」「互角境界(-2〜+2)調整」「A/B組シーソー保存則」「魔の第8枠」統合モデル。")
 
 JST = ZoneInfo("Asia/Tokyo")
 now = datetime.datetime.now(JST)
 
 # --- スタジアム網羅データベース ---
 STADIUM_DB = {
-    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
-    "千葉": {"lat": 35.578, "lon": 140.123, "name": "フクアリ", "roof": False},
-    "東京V": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
+    "横浜FM": {"lat": 35.678, "lon": 139.715, "name": "MUFG国立", "roof": False},
+    "京都": {"lat": 35.000, "lon": 135.581, "name": "サンガS", "roof": False},
+    "長崎": {"lat": 32.760, "lon": 129.866, "name": "ピースタ", "roof": False},
     "FC東京": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
-    "C大阪": {"lat": 34.618, "lon": 135.518, "name": "ヨドコウ", "roof": False},
-    "鹿島": {"lat": 35.991, "lon": 140.640, "name": "カシマ", "roof": False},
-    "広島": {"lat": 34.398, "lon": 132.453, "name": "Eピース", "roof": False},
-    "水戸": {"lat": 36.345, "lon": 140.412, "name": "水戸信ス", "roof": False},
+    "東京V": {"lat": 35.664, "lon": 139.527, "name": "味スタ", "roof": False},
+    "名古屋": {"lat": 35.084, "lon": 137.170, "name": "豊田ス", "roof": True},
+    "清水": {"lat": 34.985, "lon": 138.531, "name": "アイスタ", "roof": False},
     "岡山": {"lat": 34.681, "lon": 133.919, "name": "JFEス", "roof": False},
-    "町田": {"lat": 35.592, "lon": 139.438, "name": "Gスタ", "roof": False},
-    "柏": {"lat": 35.848, "lon": 139.975, "name": "三協F柏", "roof": False},
-    "札幌": {"lat": 43.015, "lon": 141.409, "name": "プレド", "roof": True},
-    "大分": {"lat": 33.200, "lon": 131.657, "name": "レゾド", "roof": True},
-    "今治": {"lat": 34.062, "lon": 132.997, "name": "アシさと", "roof": False},
+    "福岡": {"lat": 33.585, "lon": 130.460, "name": "ベススタ", "roof": False},
     "浦和": {"lat": 35.903, "lon": 139.717, "name": "埼玉", "roof": False},
-    "横浜FM": {"lat": 35.510, "lon": 139.606, "name": "日産ス", "roof": False},
     "川崎F": {"lat": 35.586, "lon": 139.653, "name": "U等々力", "roof": False},
+    "仙台": {"lat": 38.319, "lon": 140.882, "name": "ユアスタ", "roof": False},
+    "徳島": {"lat": 34.168, "lon": 134.618, "name": "鳴門大塚", "roof": False},
+    "宮崎": {"lat": 32.062, "lon": 131.472, "name": "いちご", "roof": False},
+    "広島": {"lat": 34.398, "lon": 132.453, "name": "Eピース", "roof": False},
+    "鹿島": {"lat": 35.991, "lon": 140.640, "name": "メルスタ", "roof": False},
     "神戸": {"lat": 34.656, "lon": 135.169, "name": "ノエスタ", "roof": True},
+    "C大阪": {"lat": 34.618, "lon": 135.518, "name": "ヨドコウ", "roof": False},
+    "G大阪": {"lat": 34.809, "lon": 135.543, "name": "パナスタ", "roof": False},
+    "秋田": {"lat": 39.721, "lon": 140.103, "name": "ソユスタ", "roof": False},
+    "鳥栖": {"lat": 33.372, "lon": 130.520, "name": "駅スタ", "roof": False},
+    "富山": {"lat": 36.637, "lon": 137.195, "name": "富山", "roof": False},
 }
 
 DERBIES = [
-    ({"東京V", "FC東京"}, "🔥 伝統の東京ダービー"),
+    ({"東京V", "FC東京"}, "🔥 東京ダービー"),
     ({"清水", "磐田"}, "🔥 静岡ダービー"),
     ({"G大阪", "C大阪"}, "🔥 大阪ダービー"),
     ({"横浜FM", "川崎F"}, "🔥 神奈川ダービー"),
+    ({"神戸", "町田"}, "🔥 首位頂上決戦"),
 ]
 
 # --- 総合戦力ランク（J1・J2統合序列 1〜30） ---
@@ -57,23 +62,48 @@ TEAM_POWER_RANK = {
 }
 
 ROUNDS_SCHEDULE = {
-    "第1663回 (10/17 土 開催)": {
-        "deadline": datetime.datetime(2026, 10, 17, 12, 50, 0, tzinfo=JST),
-        "round_num": 1663,
+    "第1664回 (10/21 水 18:50締切)": {
+        "deadline": datetime.datetime(2026, 10, 21, 18, 50, 0, tzinfo=JST),
+        "round_num": 1664,
         "matches": [
-            {"no": 1, "home": "清水", "away": "G大阪", "date": "2026-10-17"},
-            {"no": 2, "home": "千葉", "away": "横浜FM", "date": "2026-10-17"},
-            {"no": 3, "home": "東京V", "away": "FC東京", "date": "2026-10-17"},
-            {"no": 4, "home": "C大阪", "away": "川崎F", "date": "2026-10-17"},
-            {"no": 5, "home": "鹿島", "away": "長崎", "date": "2026-10-17"},
-            {"no": 6, "home": "広島", "away": "京都", "date": "2026-10-17"},
-            {"no": 7, "home": "水戸", "away": "浦和", "date": "2026-10-17"},
-            {"no": 8, "home": "岡山", "away": "神戸", "date": "2026-10-18"},
-            {"no": 9, "home": "町田", "away": "福岡", "date": "2026-10-18"},
-            {"no": 10, "home": "柏", "away": "名古屋", "date": "2026-10-17"},
-            {"no": 11, "home": "札幌", "away": "秋田", "date": "2026-10-18"},
-            {"no": 12, "home": "大分", "away": "新潟", "date": "2026-10-18"},
-            {"no": 13, "home": "今治", "away": "鳥栖", "date": "2026-10-18"},
+            # A組 (1-5)
+            {"no": 1, "home": "横浜FM", "away": "東京V", "date": "2026-10-21"},
+            {"no": 2, "home": "京都", "away": "鹿島", "date": "2026-10-21"},
+            {"no": 3, "home": "長崎", "away": "広島", "date": "2026-10-21"},
+            {"no": 4, "home": "FC東京", "away": "柏", "date": "2026-10-21"},
+            {"no": 5, "home": "名古屋", "away": "C大阪", "date": "2026-10-21"},
+            # B組 (6-10)
+            {"no": 6, "home": "清水", "away": "町田", "date": "2026-10-21"},
+            {"no": 7, "home": "岡山", "away": "水戸", "date": "2026-10-21"},
+            {"no": 8, "home": "福岡", "away": "G大阪", "date": "2026-10-21"},
+            {"no": 9, "home": "浦和", "away": "千葉", "date": "2026-10-21"},
+            {"no": 10, "home": "川崎F", "away": "神戸", "date": "2026-10-21"},
+            # 終盤 (11-13)
+            {"no": 11, "home": "仙台", "away": "今治", "date": "2026-10-21"},
+            {"no": 12, "home": "徳島", "away": "八戸", "date": "2026-10-21"},
+            {"no": 13, "home": "宮崎", "away": "秋田", "date": "2026-10-21"},
+        ]
+    },
+    "第1665回 (10/24 土 13:50締切)": {
+        "deadline": datetime.datetime(2026, 10, 24, 13, 50, 0, tzinfo=JST),
+        "round_num": 1665,
+        "matches": [
+            # A組 (1-5)
+            {"no": 1, "home": "広島", "away": "清水", "date": "2026-10-24"},
+            {"no": 2, "home": "鹿島", "away": "柏", "date": "2026-10-24"},
+            {"no": 3, "home": "神戸", "away": "町田", "date": "2026-10-24"},
+            {"no": 4, "home": "C大阪", "away": "千葉", "date": "2026-10-25"},
+            {"no": 5, "home": "FC東京", "away": "水戸", "date": "2026-10-25"},
+            # B組 (6-10)
+            {"no": 6, "home": "東京V", "away": "福岡", "date": "2026-10-24"},
+            {"no": 7, "home": "G大阪", "away": "京都", "date": "2026-10-24"},
+            {"no": 8, "home": "名古屋", "away": "横浜FM", "date": "2026-10-25"},
+            {"no": 9, "home": "川崎F", "away": "岡山", "date": "2026-10-25"},
+            {"no": 10, "home": "浦和", "away": "長崎", "date": "2026-10-25"},
+            # 終盤 (11-13)
+            {"no": 11, "home": "秋田", "away": "今治", "date": "2026-10-25"},
+            {"no": 12, "home": "鳥栖", "away": "八戸", "date": "2026-10-25"},
+            {"no": 13, "home": "富山", "away": "札幌", "date": "2026-10-25"},
         ]
     }
 }
@@ -102,24 +132,24 @@ def fetch_weather_for_date(home_team, match_date_str):
     except Exception:
         return {"desc": "☀️ 晴れ (平年値)", "is_rain": False, "roof": info.get("roof", False), "stadium": info.get("name", "会場")}
 
-# --- 非線形・逆転法則エンジン（65試合の総当たり探索で導出されたルール） ---
+# --- 非線形・逆転法則エンジン v2.1（第1663回検証で境界を -2〜+2 に精緻化） ---
 def predict_nonlinear_model(no, h_name, a_name, is_rain=False, is_derby=False,
                             trap_penalty=0.22, slot_weight=1.0):
     hr = TEAM_POWER_RANK.get(h_name, 20)
     ar = TEAM_POWER_RANK.get(a_name, 20)
     diff = ar - hr  # 正ならホームが格上
 
-    if 2 <= diff <= 5:
+    if 3 <= diff <= 5:
         p1, p0, p2 = 0.65, 0.15, 0.20
         pattern_tag = f"🎯 ややホーム格上(差+{diff}): 順当スイートスポット(勝率69%帯)"
     elif diff >= 6:
         p1 = max(0.60 - trap_penalty, 0.25)
         p0 = 0.24
         p2 = 1.0 - p1 - p0
-        pattern_tag = f"⚠️ 圧倒的ホーム格上(差+{diff}): 引かれ守備カウンター罠(マイナス補正発動)"
-    elif -2 <= diff <= 1:
+        pattern_tag = f"⚠️ 圧倒的ホーム格上(差+{diff}): 引かれ守備カウンター罠(マイナス補正)"
+    elif -2 <= diff <= 2:
         p1, p0, p2 = 0.28, 0.26, 0.46
-        pattern_tag = f"🔄 互角対決(差{diff:+d}): ホーム焦り・アウェイ優勢バイアス(2が48%帯)"
+        pattern_tag = f"🔄 互角対決(差{diff:+d}): ホーム焦り・アウェイ優勢＆引分警戒"
     elif -5 <= diff <= -3:
         p1, p0, p2 = 0.32, 0.18, 0.50
         pattern_tag = f"🚩 ややアウェイ格上(差{diff:+d}): アウェイ順当優位"
@@ -140,14 +170,14 @@ def predict_nonlinear_model(no, h_name, a_name, is_rain=False, is_derby=False,
 
     # 枠番エリアの揺らぎバイアス
     if no <= 5:
-        p1 += 0.06 * slot_weight
-        p0 += 0.05 * slot_weight
-        p2 -= 0.11 * slot_weight
+        p1 += 0.04 * slot_weight
+        p0 += 0.06 * slot_weight
+        p2 -= 0.10 * slot_weight
     elif no == 8:
         p2 += 0.25 * slot_weight
         p1 -= 0.15 * slot_weight
         p0 -= 0.10 * slot_weight
-        pattern_tag += " / 🚨【魔の第8枠(過去5戦100%アウェイ2)】"
+        pattern_tag += " / 🚨【魔の第8枠(過去6戦100%アウェイ2)】"
     elif no >= 11:
         p2 += 0.10 * slot_weight
         p1 -= 0.06 * slot_weight
@@ -231,7 +261,7 @@ st.sidebar.metric(label="合計購入口数", value=f"{combinations:,} 口")
 st.sidebar.metric(label="合計投資金額", value=f"{total_cost:,} 円")
 
 # --- タブ構成 ---
-tab1, tab2 = st.tabs(["🎯 非線形・揺らぎ逆転予想＆マークシート", "🧠 65試合総当たり学習＆13試合バックテスト"])
+tab1, tab2 = st.tabs(["🎯 最新予想＆マークシート", "🧠 78試合(6開催)総当たり検証＆バックテスト"])
 
 # ==================== タブ1：最新予想 ====================
 with tab1:
@@ -241,7 +271,7 @@ with tab1:
     for rm in raw_matches:
         h_name = rm["home"]
         a_name = rm["away"]
-        m_date = rm.get("date", "2026-10-17")
+        m_date = rm.get("date", "2026-10-21")
         pair = {h_name, a_name}
         derby_label = None
         for d_set, d_name in DERBIES:
@@ -322,7 +352,6 @@ with tab1:
         })
         st.divider()
 
-    # 出目構成比（揺らぎバランス）のリアルタイム診断
     cnt_marks = Counter(first_marks_list)
     st.info(f"📊 **軸目の出目バランス診断（全{total_slots}試合）**: ホーム【1】={cnt_marks['1']}個 ／ 引分【0】={cnt_marks['0']}個 ／ アウェイ【2】={cnt_marks['2']}個 （※13試合の理想収束ラインは 1:5個 / 0:3個 / 2:5個）")
 
@@ -338,10 +367,10 @@ with tab1:
         })
     st.dataframe(pd.DataFrame(sheet_rows), use_container_width=True, hide_index=True)
 
-# ==================== タブ2：65試合総当たり学習＆13試合バックテスト ====================
+# ==================== タブ2：78試合総当たり検証＆バックテスト ====================
 with tab2:
-    st.subheader("🧠 過去5開催・全65試合（13試合×5回）逆転法則バックテスト")
-    st.caption("「圧倒的格上ホームのマイナス補正」と「枠番の揺らぎバイアス」を変化させたとき、13試合中何試合当たるかを検証します。")
+    st.subheader("🧠 過去6開催・全78試合（第1653回〜第1663回）バックテスト")
+    st.caption("第1663回の最新結果を追加し、A組・B組・通常totoの的中成績を検証します。")
 
     c_p1, c_p2 = st.columns(2)
     with c_p1:
@@ -350,6 +379,7 @@ with tab2:
         sim_slot_weight = st.slider("🔄 主催者の枠番バイアス(第8枠・終盤枠)の反映強度", 0.0, 1.5, 1.0, 0.1)
 
     ROUNDS_13_HISTORY = [
+        (1663, [(1,"清水","G大阪","0"),(2,"千葉","横浜FM","0"),(3,"東京V","FC東京","2"),(4,"C大阪","川崎F","2"),(5,"鹿島","長崎","1"),(6,"広島","京都","1"),(7,"水戸","浦和","2"),(8,"岡山","神戸","2"),(9,"町田","福岡","1"),(10,"柏","名古屋","2"),(11,"札幌","秋田","1"),(12,"大分","新潟","1"),(13,"今治","八戸","0")]),
         (1660, [(1,"C大阪","横浜FM","0"),(2,"FC東京","浦和","1"),(3,"福岡","岡山","1"),(4,"千葉","長崎","0"),(5,"水戸","清水","2"),(6,"京都","町田","2"),(7,"東京V","広島","2"),(8,"川崎F","名古屋","2"),(9,"甲府","栃木C","1"),(10,"鳥栖","藤枝","1"),(11,"徳島","今治","2"),(12,"山形","仙台","2"),(13,"いわき","秋田","1")]),
         (1658, [(1,"町田","京都","0"),(2,"柏","G大阪","0"),(3,"藤枝","湘南","0"),(4,"甲府","富山","2"),(5,"大分","山形","1"),(6,"新潟","徳島","1"),(7,"札幌","いわき","1"),(8,"八戸","横浜FC","2"),(9,"仙台","磐田","1"),(10,"栃木C","今治","2"),(11,"秋田","鳥栖","1"),(12,"讃岐","栃木SC","0"),(13,"琉球","金沢","2")]),
         (1656, [(1,"山形","鳥栖","1"),(2,"富山","横浜FC","0"),(3,"徳島","栃木C","1"),(4,"大宮","甲府","1"),(5,"宮崎","札幌","1"),(6,"秋田","新潟","0"),(7,"いわき","仙台","2"),(8,"磐田","八戸","2"),(9,"今治","湘南","2"),(10,"大分","藤枝","0"),(11,"群馬","熊本","2"),(12,"福島","長野","1"),(13,"栃木SC","松本","2")]),
@@ -357,55 +387,41 @@ with tab2:
         (1653, [(1,"水戸","川崎F","2"),(2,"清水","福岡","1"),(3,"G大阪","FC東京","2"),(4,"町田","横浜FM","0"),(5,"長崎","名古屋","1"),(6,"広島","C大阪","1"),(7,"東京V","千葉","0"),(8,"浦和","岡山","2"),(9,"今治","鳥栖","1"),(10,"いわき","横浜FC","1"),(11,"八戸","湘南","2"),(12,"甲府","磐田","2"),(13,"秋田","徳島","1")])
     ]
 
-    bt_13_logs = []
-    tot_single_hits = 0
-    tot_multi_hits = 0
-
+    bt_logs = []
     for rnd, m_list in ROUNDS_13_HISTORY:
         r_preds = []
         for no, h, a, actual in m_list:
             p1, p0, p2, _, _, _ = predict_nonlinear_model(
-                no, h, a, is_rain=False, is_derby=False,
+                no, h, a, is_rain=False, is_derby=(({h, a} == {"東京V", "FC東京"})),
                 trap_penalty=sim_trap_penalty, slot_weight=sim_slot_weight
             )
             ch = sorted([("1", p1), ("0", p0), ("2", p2)], key=lambda x: x[1], reverse=True)
             c_1, c_2, c_3 = ch
             unc = c_1[1] - c_2[1]
-            r_preds.append({"no": no, "actual": actual, "m1": c_1[0], "m2": c_2[0], "unc": unc})
+            r_preds.append({"no": no, "actual": actual, "m1": c_1[0], "m2": c_2[0], "unc": unc, "top_p": c_1[1]})
 
-        s_chaos = sorted(r_preds, key=lambda x: x["unc"])
-        t_set = {x["no"] for x in s_chaos[:1]}
-        d_set = {x["no"] for x in s_chaos[1:6]}
+        # A組 (36口包囲網) 判定
+        a_sub = r_preds[:5]
+        a_sc = sorted(a_sub, key=lambda x: x["unc"])
+        a_t = {x["no"] for x in a_sc[:2]}
+        a_rem = sorted(a_sc[2:], key=lambda x: x["top_p"], reverse=True)
+        a_s = {x["no"] for x in a_rem[:1]}
+        a_hits = sum(1 for p in a_sub if p["actual"] in ({"1","0","2"} if p["no"] in a_t else ({p["m1"]} if p["no"] in a_s else {p["m1"], p["m2"]})))
 
-        s_hit = 0
-        m_hit = 0
-        for p in r_preds:
-            if p["m1"] == p["actual"]:
-                s_hit += 1
-            if p["no"] in t_set:
-                allowed = {"1", "0", "2"}
-            elif p["no"] in d_set:
-                allowed = {p["m1"], p["m2"]}
-            else:
-                allowed = {p["m1"]}
-            if p["actual"] in allowed:
-                m_hit += 1
+        # B組 (36口包囲網) 判定
+        b_sub = r_preds[5:10]
+        b_sc = sorted(b_sub, key=lambda x: x["unc"])
+        b_t = {x["no"] for x in b_sc[:2]}
+        b_rem = sorted(b_sc[2:], key=lambda x: x["top_p"], reverse=True)
+        b_s = {x["no"] for x in b_rem[:1]}
+        b_hits = sum(1 for p in b_sub if p["actual"] in ({"1","0","2"} if p["no"] in b_t else ({p["m1"]} if p["no"] in b_s else {p["m1"], p["m2"]})))
+        b_single = sum(1 for p in b_sub if p["actual"] == p["m1"])
 
-        tot_single_hits += s_hit
-        tot_multi_hits += m_hit
-
-        prize_str = "🎉 1等(13/13)" if m_hit == 13 else ("🥈 2等入賞!(12/13)" if m_hit == 12 else ("🥉 3等入賞!(11/13)" if m_hit == 11 else f"あと{11 - m_hit}試合"))
-        bt_13_logs.append({
-            "開催回": f"第{rnd}回 (全13試合)",
-            "シングル1点的中": f"{s_hit} / 13試合",
-            "マルチ的中 (T1・D5=96口)": f"{m_hit} / 13試合",
-            "13試合toto判定": prize_str
+        bt_logs.append({
+            "開催回": f"第{rnd}回",
+            "mini toto-A組 (36口)": f"{a_hits}/5 {'🎉1等!' if a_hits == 5 else ''}",
+            "mini toto-B組 (シングル1点)": f"{b_single}/5 {'🎉1点完全的中!' if b_single == 5 else ''}",
+            "mini toto-B組 (36口)": f"{b_hits}/5 {'🎉1等!' if b_hits == 5 else ''}",
         })
 
-    k1, k2 = st.columns(2)
-    with k1:
-        st.metric("13試合 シングル平均的中数", f"{tot_single_hits / 5:.1f} / 13試合", delta="従来モデル(5.6試合)比")
-    with k2:
-        st.metric("13試合 マルチ平均的中数 (96口)", f"{tot_multi_hits / 5:.1f} / 13試合")
-
-    st.dataframe(pd.DataFrame(bt_13_logs), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(bt_logs), use_container_width=True, hide_index=True)
